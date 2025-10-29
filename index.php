@@ -1,0 +1,870 @@
+<?php
+include 'db.php';
+?> 
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CampusHealth - Health Alert & Monitoring</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <style>
+    .badge-ok { background:#E6FFEE;color:#047857;padding:4px 8px;border-radius:999px;font-weight:600 }
+    .badge-watch { background:#FFF7ED;color:#92400E;padding:4px 8px;border-radius:999px;font-weight:600 }
+    .badge-crit { background:#FFF1F2;color:#991B1B;padding:4px 8px;border-radius:999px;font-weight:600 }
+    .card { background: white; border-radius:16px; box-shadow: 0 8px 22px rgba(15,23,42,0.08); transition: all 0.25s ease; }
+    .card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(15,23,42,0.12); }
+    .muted { color:#6B7280 }
+    .gradient-bg { background: linear-gradient(135deg, #bbf7d0 0%, #ecfccb 100%); }
+    .dot { width:12px; height:12px; border-radius:50%; }
+    /* Modal backdrop fix for demo */
+    .modal-backdrop { background: rgba(0,0,0,0.35); }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-green-50 to-white font-sans flex flex-col">
+
+  <!-- 🌿 Top Navigation Bar -->
+  <nav class="bg-green-600 text-white shadow-lg sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-white/20 rounded flex items-center justify-center text-lg font-bold">
+          <i class="ph-fill ph-heartbeat text-2xl"></i>
+        </div>
+        <div>
+          <div class="font-bold text-lg">CampusHealth</div>
+          <div class="text-xs text-white/80">Health Alert & Monitoring</div>
+        </div>
+      </div>
+
+      <!-- Navigation Links -->
+      <div class="hidden md:flex gap-6 text-sm">
+        <a href="#dashboard" class="nav-link hover:text-green-200 font-medium">Dashboard</a>
+        <a href="#students" class="nav-link hover:text-green-200 font-medium">Students</a>
+        <a href="#monitoring" class="nav-link hover:text-green-200 font-medium">Monitoring</a>
+        <a href="#alerts" class="nav-link hover:text-green-200 font-medium">Alerts</a>
+        <a href="#reports" class="nav-link hover:text-green-200 font-medium">Reports</a>
+      </div>
+
+      <!-- Right area -->
+      <div class="flex items-center gap-3">
+        <div class="text-sm hidden sm:block">👋 <span id="navUser"></span></div>
+        <button id="btnLogout" class="bg-white/10 hover:bg-white/20 rounded px-3 py-1 text-sm">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 📊 Main Content Area -->
+  <main class="flex-1 max-w-7xl mx-auto px-6 py-10 w-full">
+    <!-- Page Title + Actions -->
+    <header class="flex flex-wrap items-center justify-between mb-8 gap-3">
+      <div>
+        <h1 id="page-title" class="text-3xl font-bold text-gray-800 flex items-center gap-2">
+          <i class="ph-fill ph-activity text-green-600"></i> Health Dashboard
+        </h1>
+        <p class="text-sm muted mt-1">Monitor student vitals & send alerts</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <input id="globalSearch" class="border rounded px-3 py-2 shadow-sm focus:ring-2 focus:ring-green-300 focus:outline-none" placeholder="Search students or course" />
+        <button id="btnExport" class="px-3 py-2 bg-slate-100 rounded hover:bg-slate-200">Export JSON</button>
+        <button id="btnImport" class="px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Import</button>
+      </div>
+    </header>
+
+    <!-- Dynamic Views -->
+    <section id="content-area">
+      <div id="view-dashboard">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 mb-10">
+          <div class="card p-5 text-center gradient-bg">
+            <div class="text-sm muted mb-1">Total Students</div>
+            <i class="ph ph-users text-green-700 text-3xl mb-1"></i>
+            <div id="statTotal" class="text-2xl font-bold text-gray-800">0</div>
+          </div>
+          <div class="card p-5 text-center gradient-bg">
+            <div class="text-sm muted mb-1">OK Status</div>
+            <i class="ph ph-check-circle text-green-700 text-3xl mb-1"></i>
+            <div id="statOK" class="text-2xl font-bold text-gray-800">0</div>
+          </div>
+          <div class="card p-5 text-center gradient-bg">
+            <div class="text-sm muted mb-1">Watch Status</div>
+            <i class="ph ph-warning text-yellow-600 text-3xl mb-1"></i>
+            <div id="statWatch" class="text-2xl font-bold text-gray-800">0</div>
+          </div>
+          <div class="card p-5 text-center gradient-bg">
+            <div class="text-sm muted mb-1">Critical Status</div>
+            <i class="ph ph-x-circle text-red-600 text-3xl mb-1"></i>
+            <div id="statCrit" class="text-2xl font-bold text-gray-800">0</div>
+          </div>
+          <div class="card p-5 text-center gradient-bg">
+            <div class="text-sm muted mb-1">Active Alerts</div>
+            <i class="ph ph-bell text-purple-700 text-3xl mb-1"></i>
+            <div id="statAlerts" class="text-2xl font-bold text-gray-800">0</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="card p-5 lg:col-span-2">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="font-semibold text-lg text-gray-800 flex items-center gap-2"><i class="ph ph-bell-ringing"></i> Recent Alerts</h3>
+              <span class="text-sm muted">Last 24 hours</span>
+            </div>
+            <div id="recentAlerts" class="flex flex-col gap-3 text-sm text-gray-700">
+              <p class="text-center text-gray-400 italic">No alerts yet...</p>
+            </div>
+          </div>
+
+          <div class="card p-5">
+            <h3 class="font-semibold text-lg text-gray-800 mb-3 flex items-center gap-2"><i class="ph ph-heartbeat"></i> Students Requiring Attention</h3>
+            <div id="attentionList" class="flex flex-col gap-3 text-sm text-gray-700">
+              <p class="text-center text-gray-400 italic">All students are stable.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Students View -->
+      <div id="view-students" class="hidden">
+        <div class="card p-5 mb-5 flex flex-col sm:flex-row justify-between items-center gap-3">
+          <input id="studentSearch" placeholder="Search student" class="border rounded px-3 py-2 w-full sm:w-1/3 shadow-sm focus:ring-2 focus:ring-green-300" />
+          <div class="flex gap-2">
+            <button id="btnAddStudent" class="bg-green-600 text-white px-5 py-2 rounded hover:bg-green-700 flex items-center gap-1"><i class="ph ph-plus"></i> Add Student</button>
+            <button id="btnAddPrompt" class="bg-slate-100 px-4 py-2 rounded hover:bg-slate-200">Add (Prompt)</button>
+          </div>
+        </div>
+
+        <div class="card overflow-x-auto">
+          <table class="min-w-full text-left text-sm">
+            <thead class="bg-green-50 text-green-700 uppercase text-xs">
+              <tr>
+                <th class="p-3">ID</th>
+                <th class="p-3">Name</th>
+                <th class="p-3">Course</th>
+                <th class="p-3">Age</th>
+                <th class="p-3">Sex</th>
+                <th class="p-3">Area</th>
+                <th class="p-3">Temp</th>
+                <th class="p-3">HR</th>
+                <th class="p-3">O₂</th>
+                <th class="p-3">Status</th>
+                <th class="p-3">Action</th>
+              </tr>
+            </thead>
+            <tbody id="studentsTable" class="divide-y"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Monitoring (hidden by default) -->
+      <div id="view-monitoring" class="hidden">
+        <div class="grid grid-cols-3 gap-4">
+          <div class="card p-4">
+            <h3 class="font-semibold mb-3">Students</h3>
+            <div id="monitoringList" class="flex flex-col gap-2"></div>
+          </div>
+
+          <div class="col-span-2">
+            <div class="card p-6 mb-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h2 id="monName" class="text-xl font-semibold">Select a student</h2>
+                  <div id="monCourse" class="muted text-sm">—</div>
+                  <div id="monMeta" class="muted text-sm mt-1">—</div>
+                </div>
+                <div id="monStatus" class="badge-ok">OK</div>
+              </div>
+
+              <div class="grid grid-cols-3 gap-4 mt-6">
+                <div class="p-4 card">
+                  <div class="muted text-sm">Temperature</div>
+                  <div id="monTemp" class="text-2xl font-bold">—</div>
+                  <div id="monTempTag" class="mt-2 muted text-sm">—</div>
+                </div>
+                <div class="p-4 card">
+                  <div class="muted text-sm">Heart Rate</div>
+                  <div id="monHR" class="text-2xl font-bold">—</div>
+                  <div id="monHRTag" class="mt-2 muted text-sm">—</div>
+                </div>
+                <div class="p-4 card">
+                  <div class="muted text-sm">Oxygen Level</div>
+                  <div id="monO2" class="text-2xl font-bold">—</div>
+                  <div id="monO2Tag" class="mt-2 muted text-sm">—</div>
+                </div>
+              </div>
+
+              <div class="mt-6">
+                <h4 class="font-semibold">24-Hour Vitals History</h4>
+                <div id="historyTable" class="mt-3"></div>
+              </div>
+            </div>
+
+            <div class="flex gap-3">
+              <button id="btnManualCheck" class="px-4 py-2 bg-indigo-600 text-white rounded">Manual Health Check</button>
+              <button id="btnSendAlert" class="px-4 py-2 bg-amber-500 text-white rounded">Send Alert</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alerts -->
+      <div id="view-alerts" class="hidden">
+        <div class="card p-4">
+          <h3 class="font-semibold">Alerts</h3>
+          <div id="alertsTable" class="mt-4"></div>
+        </div>
+      </div>
+
+      <!-- Reports -->
+      <div id="view-reports" class="hidden">
+        <div class="card p-4">
+          <h3 class="font-semibold">Reports</h3>
+          <p class="muted mt-2">Simple export of students and alerts available via Export JSON.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Import input kept -->
+    <input id="fileImport" type="file" accept="application/json" class="hidden" />
+  </main>
+
+  <!-- modal for add/edit student -->
+  <div id="studentModal" class="fixed inset-0 hidden items-center justify-center z-50">
+    <div class="absolute inset-0 modal-backdrop"></div>
+    <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl z-10 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="modalTitle" class="text-lg font-semibold">Add Student</h3>
+        <button id="modalClose" class="text-gray-500 hover:text-gray-700"><i class="ph ph-x"></i></button>
+      </div>
+
+      <form id="studentForm" class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm muted mb-1">Student ID</label>
+            <input id="formId" required class="w-full border rounded px-3 py-2" placeholder="S007" />
+          </div>
+          <div>
+            <label class="block text-sm muted mb-1">Age</label>
+            <input id="formAge" type="number" min="1" class="w-full border rounded px-3 py-2" placeholder="18" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm muted mb-1">Full name</label>
+          <input id="formName" required class="w-full border rounded px-3 py-2" placeholder="Juan dela Cruz" />
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-sm muted mb-1">Sex</label>
+            <select id="formSex" class="w-full border rounded px-3 py-2">
+              <option value="">— select —</option>
+              <option>Male</option>
+              <option>Female</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm muted mb-1">Area</label>
+            <select id="formGender" class="w-full border rounded px-3 py-2">
+              <option value="">— select —</option>
+              <option>Old Site</option>
+              <option>Mid site</option>
+              <option>New Site</option>
+              <option></option>
+              <option></option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm muted mb-1">Course</label>
+            <select id="formCourse" class="w-full border rounded px-3 py-2">
+              <option value="">— select course —</option>
+              <option>B.S. in Agriculture</option>
+              <option>B.S. in Information Technology</option>
+              <option>Bachelor of Secondary Education</option>
+              <option>B.S. in Inland Fisheries</option>
+              <option>B.S. in Agri-Business</option>
+              <option>B.S. in Criminology</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-sm muted mb-1">Temperature (°C)</label>
+            <input id="formTemp" type="number" step="0.1" class="w-full border rounded px-3 py-2" placeholder="36.7" />
+          </div>
+          <div>
+            <label class="block text-sm muted mb-1">Heart rate (bpm)</label>
+            <input id="formHr" type="number" class="w-full border rounded px-3 py-2" placeholder="72" />
+          </div>
+          <div>
+            <label class="block text-sm muted mb-1">O₂ (%)</label>
+            <input id="formO2" type="number" class="w-full border rounded px-3 py-2" placeholder="98" />
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2">
+          <button type="button" id="formCancel" class="px-4 py-2 rounded border">Cancel</button>
+          <button type="submit" id="formSave" class="px-4 py-2 rounded bg-green-600 text-white">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 🌿 Footer -->
+  <footer class="bg-green-600 text-white py-4 mt-10 text-center text-sm">
+    <p>&copy; 2025 CampusHealth | Designed for a safer campus.</p>
+  </footer>
+
+  <!-- JS -->
+  <script>
+  /***********************
+   * Simple client-side app (modal + prompt)
+   * Data persisted in localStorage
+   ***********************/
+
+  // ----- Config / Courses -----
+  const COURSES = [
+    'B.S. in Agriculture',
+    'B.S. in Information Technology',
+    'Bachelor of Secondary Education',
+    'B.S. in Inland Fisheries',
+    'B.S. in Agri-Business',
+    'B.S. in Criminology'
+  ];
+
+  // ----- Default Data (updated with new fields) -----
+  const DEFAULT_STUDENTS = [
+    { id: 'S001', name: 'Ana Cruz', course: 'B.S. in Information Technology', age: 19, sex: 'Female', gender: 'Woman', temp: 36.7, hr: 72, o2: 98, history: [] },
+    { id: 'S002', name: 'Mark Dela Vega', course: 'B.S. in Criminology', age: 21, sex: 'Male', gender: 'Man', temp: 38.3, hr: 95, o2: 94, history: [] },
+    { id: 'S003', name: 'Liza Santos', course: 'Bachelor of Secondary Education', age: 20, sex: 'Female', gender: 'Woman', temp: 39.1, hr: 110, o2: 90, history: [] },
+    { id: 'S004', name: 'John Martinez', course: 'B.S. in Agriculture', age: 22, sex: 'Male', gender: 'Man', temp: 36.5, hr: 68, o2: 99, history: [] },
+    { id: 'S005', name: 'Sarah Johnson', course: 'B.S. in Agri-Business', age: 18, sex: 'Female', gender: 'Woman', temp: 37.8, hr: 88, o2: 96, history: [] },
+    { id: 'S006', name: 'Michael Chen', course: 'B.S. in Inland Fisheries', age: 23, sex: 'Male', gender: 'Man', temp: 36.9, hr: 75, o2: 97, history: [] }
+  ];
+
+  // ----- Storage helpers -----
+  function loadData(){
+    const raw = localStorage.getItem('campushealth_data');
+    if (!raw) {
+      localStorage.setItem('campushealth_data', JSON.stringify(DEFAULT_STUDENTS));
+      return DEFAULT_STUDENTS.slice();
+    }
+    try {
+      return JSON.parse(raw);
+    } catch(e){
+      console.error(e);
+      localStorage.removeItem('campushealth_data');
+      localStorage.setItem('campushealth_data', JSON.stringify(DEFAULT_STUDENTS));
+      return DEFAULT_STUDENTS.slice();
+    }
+  }
+  function saveData(arr){
+    localStorage.setItem('campushealth_data', JSON.stringify(arr));
+  }
+
+  let students = loadData();
+  let alerts = JSON.parse(localStorage.getItem('campushealth_alerts')||'[]');
+  let selectedStudentId = null;
+
+  // ----- Status evaluation -----
+  function evaluateStatus(s){
+    const t = Number(s.temp);
+    if (t >= 39) return 'CRITICAL';
+    if (t >= 37.5) return 'WATCH';
+    return 'OK';
+  }
+
+  // ----- Navigation & view handling -----
+  function navigateTo(view){
+    location.hash = view;
+    showView(view);
+  }
+  function showView(view){
+    document.querySelectorAll('#content-area > div').forEach(d=>d.classList.add('hidden'));
+    const target = document.getElementById('view-'+view);
+    if(target) target.classList.remove('hidden');
+    const titles = {dashboard:'Health Dashboard', students:'Students', monitoring:'Health Monitoring', alerts:'Alerts', reports:'Reports'};
+    document.getElementById('page-title').innerText = titles[view] || 'CampusHealth';
+    if(view==='students') renderStudentsTable();
+    if(view==='dashboard') renderDashboard();
+    if(view==='monitoring') renderMonitoringList();
+    if(view==='alerts') renderAlerts();
+  }
+
+  document.querySelectorAll('.nav-link').forEach(a=>{
+    a.onclick = (e)=>{ e.preventDefault(); const href = a.getAttribute('href').replace('#',''); navigateTo(href); };
+  });
+  window.addEventListener('hashchange', ()=>{ const h = location.hash.replace('#','')||'dashboard'; showView(h); });
+
+  // ----- Renderers -----
+  function renderDashboard(){
+    const total = students.length;
+    const ok = students.filter(s=>evaluateStatus(s)==='OK').length;
+    const watch = students.filter(s=>evaluateStatus(s)==='WATCH').length;
+    const crit = students.filter(s=>evaluateStatus(s)==='CRITICAL').length;
+    document.getElementById('statTotal').innerText = total;
+    document.getElementById('statOK').innerText = ok;
+    document.getElementById('statWatch').innerText = watch;
+    document.getElementById('statCrit').innerText = crit;
+    document.getElementById('statAlerts').innerText = alerts.length;
+
+    const recent = alerts.slice().reverse().slice(0,5);
+    const ra = document.getElementById('recentAlerts');
+    ra.innerHTML='';
+    if(recent.length===0) ra.innerHTML = '<p class="text-center text-gray-400 italic">No alerts yet...</p>';
+    recent.forEach(a=>{
+      const el = document.createElement('div');
+      el.className='p-3 border rounded';
+      el.innerHTML = `
+        <div class="font-semibold">${a.name}</div>
+        <div class="muted text-sm">${a.message}</div>
+        <div class="text-xs muted">${new Date(a.time).toLocaleString()}</div>
+      `;
+      ra.appendChild(el);
+    });
+
+    const attention = students.filter(s=>evaluateStatus(s)!=='OK');
+    const att = document.getElementById('attentionList');
+    att.innerHTML='';
+    if(attention.length===0) att.innerHTML = '<p class="text-center text-gray-400 italic">All students are stable.</p>';
+    attention.forEach(s=>{
+      const status = evaluateStatus(s);
+      const el = document.createElement('div');
+      el.className='p-3 border rounded flex items-center justify-between';
+      el.innerHTML = `
+        <div>
+          <div class="font-semibold">${s.name}</div>
+          <div class="muted text-sm">${s.course} — Age: ${s.age ?? '—'}</div>
+        </div>
+        <div class="text-sm">${status==='CRITICAL'?'<span class="badge-crit">CRITICAL</span>':'<span class="badge-watch">WATCH</span>'}</div>
+      `;
+      att.appendChild(el);
+    });
+  }
+
+  function renderStudentsTable(filter=''){
+    const tbody = document.getElementById('studentsTable');
+    tbody.innerHTML='';
+    const q = (filter||document.getElementById('studentSearch').value||'').toLowerCase();
+
+    students.filter(s=>{
+      const hay = `${s.id} ${s.name} ${s.course} ${s.age || ''} ${s.sex || ''} ${s.gender || ''} ${s.temp || ''}`.toLowerCase();
+      return hay.includes(q);
+    }).forEach(s=>{
+      const tr = document.createElement('tr');
+      tr.className='hover:bg-slate-50';
+      const status = evaluateStatus(s);
+      tr.innerHTML = `
+        <td class="p-3">${s.id}</td>
+        <td class="p-3">${s.name}</td>
+        <td class="p-3">${s.course}</td>
+        <td class="p-3">${s.age ?? ''}</td>
+        <td class="p-3">${s.sex ?? ''}</td>
+        <td class="p-3">${s.gender ?? ''}</td>
+        <td class="p-3">${s.temp}</td>
+        <td class="p-3">${s.hr}</td>
+        <td class="p-3">${s.o2}</td>
+        <td class="p-3">${status==='OK'?'<span class="badge-ok">OK</span>':status==='WATCH'?'<span class="badge-watch">WATCH</span>':'<span class="badge-crit">CRITICAL</span>'}</td>
+        <td class="p-3">
+          <a href="#" data-id="${s.id}" class="link-edit text-indigo-600 mr-3">Edit</a>
+          <a href="#" data-id="${s.id}" class="link-delete text-red-600">Delete</a>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // attach actions
+    document.querySelectorAll('.link-delete').forEach(a=>a.onclick=e=>{
+      e.preventDefault();
+      const id=a.dataset.id;
+      if(confirm('Delete '+id+'?')){
+        students = students.filter(x=>x.id!==id);
+        saveData(students);
+        renderStudentsTable();
+        renderDashboard();
+        renderMonitoringList();
+      }
+    });
+    document.querySelectorAll('.link-edit').forEach(a=>a.onclick=e=>{
+      e.preventDefault();
+      const id=a.dataset.id;
+      openModalForEdit(id);
+    });
+  }
+
+  function renderMonitoringList(){
+    const box = document.getElementById('monitoringList');
+    box.innerHTML='';
+    students.forEach(s=>{
+      const status = evaluateStatus(s);
+      const el = document.createElement('div');
+      el.className='p-2 border rounded flex items-center justify-between cursor-pointer';
+      el.innerHTML = `
+        <div>
+          <div class="font-semibold">${s.name}</div>
+          <div class="muted text-sm">${s.id} • ${s.course}</div>
+        </div>
+        <div class="dot" style="background:${status==='OK'? '#10B981':status==='WATCH'?'#D97706':'#EF4444'}"></div>
+      `;
+      el.onclick = ()=>{ selectMonitoringStudent(s.id); navigateTo('monitoring'); };
+      box.appendChild(el);
+    });
+    if(!selectedStudentId && students.length) selectMonitoringStudent(students[0].id);
+  }
+
+  function renderMonitoringDetail(s){
+    document.getElementById('monName').innerText = s.name;
+    document.getElementById('monCourse').innerText = s.course + ' — ID: '+s.id;
+    document.getElementById('monMeta').innerText = `Age: ${s.age ?? '—'} • Sex: ${s.sex ?? '—'} • Gender: ${s.gender ?? '—'}`;
+    const status = evaluateStatus(s);
+    const stEl = document.getElementById('monStatus');
+    stEl.className = status==='OK'? 'badge-ok': status==='WATCH'? 'badge-watch':'badge-crit';
+    stEl.innerText = status;
+    document.getElementById('monTemp').innerText = s.temp + '°C';
+    document.getElementById('monTempTag').innerText = status==='OK'?'NORMAL':status==='WATCH'?'ELEVATED':'HIGH FEVER';
+    document.getElementById('monHR').innerText = s.hr + ' bpm';
+    document.getElementById('monHRTag').innerText = '—';
+    document.getElementById('monO2').innerText = s.o2 + '%';
+    document.getElementById('monO2Tag').innerText = '—';
+
+    const h = s.history || [];
+    const ht = document.getElementById('historyTable');
+    ht.innerHTML='';
+    if(h.length===0){ ht.innerHTML = '<p class="muted text-sm">No history available.</p>'; return; }
+    const table = document.createElement('table');
+    table.className='min-w-full';
+    const thead = document.createElement('thead');
+    thead.innerHTML='<tr class="text-left"><th class="p-2">Time</th><th class="p-2">Temp</th><th class="p-2">HR</th><th class="p-2">O₂</th></tr>';
+    table.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    h.slice().reverse().slice(0,12).forEach(row=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="p-2">${new Date(row.time).toLocaleTimeString()}</td>
+        <td class="p-2">${row.temp}°C</td>
+        <td class="p-2">${row.hr} bpm</td>
+        <td class="p-2">${row.o2}%</td>
+      `;
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    ht.appendChild(table);
+  }
+
+  function renderAlerts(){
+    const box = document.getElementById('alertsTable');
+    box.innerHTML='';
+    if(alerts.length===0) { box.innerHTML = '<p class="muted">No alerts.</p>'; return; }
+    alerts.slice().reverse().forEach(a=>{
+      const el = document.createElement('div');
+      el.className='p-3 border rounded mb-2';
+      el.innerHTML = `
+        <div class="font-semibold">${a.name}</div>
+        <div class="muted text-sm">${a.message}</div>
+        <div class="text-xs muted">${new Date(a.time).toLocaleString()}</div>
+      `;
+      box.appendChild(el);
+    });
+  }
+
+  // ----- Monitoring selection & operations -----
+  function selectMonitoringStudent(id){
+    selectedStudentId = id;
+    const s = students.find(x=>x.id===id);
+    if(!s) return;
+    renderMonitoringDetail(s);
+  }
+
+  function manualHealthCheck(){
+    if(!selectedStudentId) return alert('Select a student');
+    const s = students.find(x=>x.id===selectedStudentId);
+    if(!s) return;
+    const newTemp = Number((Number(s.temp) + (Math.random()*2 - 0.5)).toFixed(1));
+    const newHR = Math.round(Number(s.hr) + Math.random()*8 - 4);
+    const newO2 = Math.round(Number(s.o2) + Math.random()*2 - 1);
+    const now = Date.now();
+    s.temp = newTemp;
+    s.hr = newHR;
+    s.o2 = newO2;
+    s.history = s.history || [];
+    s.history.push({ time: now, temp: s.temp, hr: s.hr, o2: s.o2 });
+    saveData(students);
+    checkForAlert(s);
+    renderMonitoringDetail(s);
+    renderStudentsTable();
+    renderDashboard();
+  }
+
+  function checkForAlert(s){
+    const status = evaluateStatus(s);
+    if(status !== 'OK'){
+      const message = status==='CRITICAL'
+        ? `High fever detected - Temperature: ${s.temp}°C`
+        : `Elevated temperature - Temperature: ${s.temp}°C`;
+      const a = { id: 'A'+Date.now(), studentId: s.id, name: s.name, message, time: Date.now(), status };
+      alerts.push(a);
+      localStorage.setItem('campushealth_alerts', JSON.stringify(alerts));
+    }
+  }
+
+  function sendAlertNow(){
+    if(!selectedStudentId) return alert('Select a student first');
+    const s = students.find(x=>x.id===selectedStudentId);
+    alerts.push({ id:'A'+Date.now(), studentId:s.id, name:s.name, message:'Manual alert sent by staff', time: Date.now(), status:evaluateStatus(s)});
+    localStorage.setItem('campushealth_alerts', JSON.stringify(alerts));
+    renderAlerts();
+    renderDashboard();
+    alert('Alert queued (demo)');
+  }
+
+  // ----- Add/Edit via Prompt (kept for compatibility) -----
+  function addStudentViaPrompt(){
+    const id = prompt('Student ID (e.g. S007):');
+    if(!id) return;
+    if(students.find(s=>s.id===id)) { alert('ID already exists'); return; }
+    const name = prompt('Full name:');
+    if(!name) return;
+    const course = prompt('Course (type or paste):') || '';
+    const age = Number(prompt('Age:','18') || 0);
+    const sex = prompt('Sex (Male/Female/Other):') || '';
+    const gender = prompt('Gender (Man/Woman/Non-binary/Prefer not to say/Other):') || '';
+    const temp = Number(prompt('Temperature (°C):', '36.6') || 0);
+    const hr = Number(prompt('Heart rate (bpm):', '70') || 0);
+    const o2 = Number(prompt('O₂ (%):', '98') || 0);
+    students.push({ id, name, course, age, sex, gender, temp, hr, o2, history: [{ time: Date.now(), temp, hr, o2 }] });
+    saveData(students);
+    renderStudentsTable();
+    renderDashboard();
+    renderMonitoringList();
+  }
+
+  function editStudentViaPrompt(id){
+    const s = students.find(x=>x.id===id);
+    if(!s) return alert('Student not found');
+    const name = prompt('Full name:', s.name);
+    if(!name) return;
+    const course = prompt('Course:', s.course) || s.course;
+    const age = Number(prompt('Age:', String(s.age || '')) || s.age);
+    const sex = prompt('Sex (Male/Female/Other):', s.sex || '') || s.sex;
+    const gender = prompt('Gender (Man/Woman/Non-binary):', s.gender || '') || s.gender;
+    const temp = Number(prompt('Temperature (°C):', String(s.temp)) || s.temp);
+    const hr = Number(prompt('Heart rate (bpm):', String(s.hr)) || s.hr);
+    const o2 = Number(prompt('O₂ (%):', String(s.o2)) || s.o2);
+    s.name = name;
+    s.course = course;
+    s.age = age;
+    s.sex = sex;
+    s.gender = gender;
+    s.temp = temp;
+    s.hr = hr;
+    s.o2 = o2;
+    s.history = s.history || [];
+    saveData(students);
+    renderStudentsTable();
+    renderDashboard();
+    renderMonitoringList();
+  }
+
+  // ----- Modal Add/Edit Implementation -----
+  const studentModal = document.getElementById('studentModal');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalClose = document.getElementById('modalClose');
+  const form = document.getElementById('studentForm');
+  const formId = document.getElementById('formId');
+  const formName = document.getElementById('formName');
+  const formCourse = document.getElementById('formCourse');
+  const formAge = document.getElementById('formAge');
+  const formSex = document.getElementById('formSex');
+  const formGender = document.getElementById('formGender');
+  const formTemp = document.getElementById('formTemp');
+  const formHr = document.getElementById('formHr');
+  const formO2 = document.getElementById('formO2');
+  const formCancel = document.getElementById('formCancel');
+
+  let modalMode = 'add'; // 'add' or 'edit'
+  let editingId = null;
+
+  function openModalForAdd(){
+    modalMode = 'add';
+    editingId = null;
+    modalTitle.innerText = 'Add Student';
+    formId.disabled = false;
+    form.reset();
+    // set course options (already in markup)
+    showModal();
+  }
+  function openModalForEdit(id){
+    modalMode = 'edit';
+    editingId = id;
+    modalTitle.innerText = 'Edit Student';
+    const s = students.find(x=>x.id===id);
+    if(!s) return alert('Student not found');
+    formId.value = s.id; formId.disabled = true;
+    formName.value = s.name || '';
+    formCourse.value = s.course || '';
+    formAge.value = s.age || '';
+    formSex.value = s.sex || '';
+    formGender.value = s.gender || '';
+    formTemp.value = s.temp || '';
+    formHr.value = s.hr || '';
+    formO2.value = s.o2 || '';
+    showModal();
+  }
+
+  function showModal(){
+    studentModal.classList.remove('hidden');
+    studentModal.classList.add('flex');
+  }
+  function hideModal(){
+    studentModal.classList.add('hidden');
+    studentModal.classList.remove('flex');
+  }
+
+  modalClose.onclick = hideModal;
+  formCancel.onclick = hideModal;
+
+  form.addEventListener('submit', (ev)=>{
+    ev.preventDefault();
+    const idVal = formId.value.trim();
+    const nameVal = formName.value.trim();
+    const courseVal = formCourse.value.trim();
+    const ageVal = formAge.value ? Number(formAge.value) : null;
+    const sexVal = formSex.value;
+    const genderVal = formGender.value;
+    const tempVal = formTemp.value ? Number(formTemp.value) : 36.6;
+    const hrVal = formHr.value ? Number(formHr.value) : 70;
+    const o2Val = formO2.value ? Number(formO2.value) : 98;
+
+    if(!idVal || !nameVal){
+      alert('Please fill required fields (ID, Name).');
+      return;
+    }
+
+    if(modalMode === 'add'){
+      if(students.find(s=>s.id === idVal)){
+        alert('ID already exists.');
+        return;
+      }
+      students.push({
+        id: idVal,
+        name: nameVal,
+        course: courseVal,
+        age: ageVal,
+        sex: sexVal,
+        gender: genderVal,
+        temp: tempVal,
+        hr: hrVal,
+        o2: o2Val,
+        history: [{ time: Date.now(), temp: tempVal, hr: hrVal, o2: o2Val }]
+      });
+    } else if(modalMode === 'edit') {
+      const s = students.find(x=>x.id === editingId);
+      if(!s) { alert('Student not found'); hideModal(); return; }
+      s.name = nameVal;
+      s.course = courseVal;
+      s.age = ageVal;
+      s.sex = sexVal;
+      s.gender = genderVal;
+      s.temp = tempVal;
+      s.hr = hrVal;
+      s.o2 = o2Val;
+      s.history = s.history || [];
+    }
+
+    saveData(students);
+    hideModal();
+    renderStudentsTable();
+    renderDashboard();
+    renderMonitoringList();
+  });
+
+  // ----- UI bindings -----
+  document.getElementById('btnAddStudent').onclick = ()=> openModalForAdd();
+  document.getElementById('btnAddPrompt').onclick = ()=> addStudentViaPrompt();
+  document.getElementById('studentSearch').oninput = ()=> renderStudentsTable();
+  document.getElementById('globalSearch').oninput = ()=>{
+    const q=document.getElementById('globalSearch').value.toLowerCase();
+    if(q) { navigateTo('students'); document.getElementById('studentSearch').value=q; renderStudentsTable(); }
+  };
+  document.getElementById('btnManualCheck').onclick = manualHealthCheck;
+  document.getElementById('btnSendAlert').onclick = sendAlertNow;
+
+  // export/import
+  document.getElementById('btnExport').onclick = ()=>{
+    const data = { students, alerts };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'campushealth_export.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+  document.getElementById('btnImport').onclick = ()=> document.getElementById('fileImport').click();
+  document.getElementById('fileImport').onchange = (e)=>{
+    const f = e.target.files[0];
+    if(!f) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const d = JSON.parse(reader.result);
+        if(d.students) { students = d.students; saveData(students); }
+        if(d.alerts) { alerts = d.alerts; localStorage.setItem('campushealth_alerts', JSON.stringify(alerts)); }
+        renderStudentsTable(); renderDashboard(); renderMonitoringList(); renderAlerts();
+        alert('Import successful');
+      }catch(err){ alert('Invalid JSON'); }
+    };
+    reader.readAsText(f);
+  };
+
+  // simulate automatic periodic checks (every 30s) - small variations
+  setInterval(()=>{
+    students.forEach(s=>{
+      if(Math.random() < 0.3){
+        s.temp = Number((s.temp + (Math.random()*1.4 - 0.2)).toFixed(1));
+        s.hr = Math.max(40, Math.round(s.hr + Math.random()*10 - 5));
+        s.o2 = Math.max(80, Math.round(s.o2 + Math.random()*3 - 1));
+        s.history = s.history || [];
+        s.history.push({ time: Date.now(), temp: s.temp, hr: s.hr, o2: s.o2 });
+        checkForAlert(s);
+      }
+    });
+    saveData(students);
+    localStorage.setItem('campushealth_alerts', JSON.stringify(alerts));
+    renderDashboard();
+    renderStudentsTable();
+    renderMonitoringList();
+  }, 30000);
+
+  // ----- Logout (simple demo) -----
+function updateNavUser(){
+  const userInfo = JSON.parse(localStorage.getItem('campushealth_user') || '{}');
+  document.getElementById('navUser').textContent = userInfo.username || '';
+}
+
+document.getElementById('btnLogout').onclick = () => {
+  if(!confirm('Are you sure you want to logout?')) return;
+  localStorage.removeItem('campushealth_user');
+  updateNavUser();
+  alert('Logged out.');
+  // ✅ Redirect to homepage after logout
+  window.location.href = "home.html"; 
+};
+
+
+  // ----- Initialization -----
+  updateNavUser();
+  if(location.hash) showView(location.hash.replace('#',''));
+  else navigateTo('dashboard');
+  renderStudentsTable();
+  renderDashboard();
+  renderMonitoringList();
+  renderAlerts();
+
+  // Expose some functions to console for debugging if needed
+  window._campus = { students, alerts, saveData, loadData, editStudentViaPrompt, addStudentViaPrompt, openModalForEdit };
+
+  </script>
+</body>
+</html>
