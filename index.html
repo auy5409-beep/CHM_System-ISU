@@ -2,868 +2,914 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CampusHealth - Health Alert & Monitoring</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CampusHealth — Updated Dashboard (Upgraded)</title>
+
+  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- Icons -->
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
   <style>
-    .badge-ok { background:#E6FFEE;color:#047857;padding:4px 8px;border-radius:999px;font-weight:600 }
-    .badge-watch { background:#FFF7ED;color:#92400E;padding:4px 8px;border-radius:999px;font-weight:600 }
-    .badge-crit { background:#FFF1F2;color:#991B1B;padding:4px 8px;border-radius:999px;font-weight:600 }
-    .card { background: white; border-radius:16px; box-shadow: 0 8px 22px rgba(15,23,42,0.08); transition: all 0.25s ease; }
-    .card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(15,23,42,0.12); }
-    .muted { color:#6B7280 }
-    .gradient-bg { background: linear-gradient(135deg, #bbf7d0 0%, #ecfccb 100%); }
-    .dot { width:12px; height:12px; border-radius:50%; }
-    /* Modal backdrop fix for demo */
-    .modal-backdrop { background: rgba(0,0,0,0.35); }
+    .nav-active { background: rgba(16,185,129,0.12) !important; font-weight:700; }
+    .modal-fade { transition: all .18s ease; transform-origin:center top; }
+    .sticky-header th { position: sticky; top: 0; background: rgb(255, 255, 255); z-index:1; }
+    [data-theme="dark"] { --bg: #0b1220; --card: #0f1724; color-scheme: dark; }
+    [data-theme="dark"] body { background: linear-gradient(180deg,#071124,#07213a); color: #d1d5db; }
+    .top-row { border-bottom: 1px solid rgba(0,0,0,0.06); }
+    .tab-row { border-bottom: 1px solid rgba(0,0,0,0.04); background: rgba(255,255,255,0.8); backdrop-filter: blur(4px); }
+    [data-theme="dark"] .tab-row { background: rgba(10,15,25,0.6); border-bottom-color: rgba(255,255,255,0.04); }
   </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-green-50 to-white font-sans flex flex-col">
+<body class="min-h-screen bg-gradient-to-br from-green-50 to-white" data-theme="light">
 
-  <!-- 🌿 Top Navigation Bar -->
-  <nav class="bg-green-600 text-white shadow-lg sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 bg-white/20 rounded flex items-center justify-center text-lg font-bold">
-          <i class="ph-fill ph-heartbeat text-2xl"></i>
-        </div>
-        <div>
-          <div class="font-bold text-lg">CampusHealth</div>
-          <div class="text-xs text-white/80">Health Alert & Monitoring</div>
+  <header class="w-full shadow-sm">
+    <div class="top-row px-6 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-3">
+          <div class="text-2xl font-bold text-green-800">CampusHealth</div>
+          <div class="text-sm text-green-600 hidden md:block">Health Monitor</div>
         </div>
       </div>
 
-      <!-- Navigation Links -->
-      <div class="hidden md:flex gap-6 text-sm">
-        <a href="#dashboard" class="nav-link hover:text-green-200 font-medium">Dashboard</a>
-        <a href="#students" class="nav-link hover:text-green-200 font-medium">Students</a>
-        <a href="#monitoring" class="nav-link hover:text-green-200 font-medium">Monitoring</a>
-        <a href="#alerts" class="nav-link hover:text-green-200 font-medium">Alerts</a>
-        <a href="#reports" class="nav-link hover:text-green-200 font-medium">Reports</a>
+      <div class="flex-1 max-w-2xl mx-6">
+        <input id="globalSearchTop" placeholder="Search students, id, course..." class="w-full px-4 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-green-400" />
       </div>
 
-      <!-- Right area -->
       <div class="flex items-center gap-3">
-        <div class="text-sm hidden sm:block">👋 <span id="navUser"></span></div>
-        <button id="btnLogout" class="bg-white/10 hover:bg-white/20 rounded px-3 py-1 text-sm">Logout</button>
+        <button id="alertTopBtn" class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2">
+          <i class='bx bx-bell'></i> Alerts
+        </button>
+
+        <label class="flex items-center gap-2 text-sm">
+          <i id="darkIcon" class='bx bx-sun text-lg'></i>
+          <input id="darkToggle" type="checkbox" class="hidden" />
+        </label>
       </div>
     </div>
-  </nav>
 
-  <!-- 📊 Main Content Area -->
-  <main class="flex-1 max-w-7xl mx-auto px-6 py-10 w-full">
-    <!-- Page Title + Actions -->
-    <header class="flex flex-wrap items-center justify-between mb-8 gap-3">
-      <div>
-        <h1 id="page-title" class="text-3xl font-bold text-gray-800 flex items-center gap-2">
-          <i class="ph-fill ph-activity text-green-600"></i> Health Dashboard
-        </h1>
-        <p class="text-sm muted mt-1">Monitor student vitals & send alerts</p>
-      </div>
-      <div class="flex items-center gap-3">
-        <input id="globalSearch" class="border rounded px-3 py-2 shadow-sm focus:ring-2 focus:ring-green-300 focus:outline-none" placeholder="Search students or course" />
-        <button id="btnExport" class="px-3 py-2 bg-slate-100 rounded hover:bg-slate-200">Export JSON</button>
-        <button id="btnImport" class="px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Import</button>
-      </div>
-    </header>
+    <div class="tab-row px-6 py-2 flex items-center gap-4">
+      <nav id="tabs" class="flex gap-2">
+        <button data-view="dashboard" class="tab-btn px-3 py-2 rounded-md nav-active">Dashboard</button>
+        <button data-view="students" class="tab-btn px-3 py-2 rounded-md">Students</button>
+        <button data-view="monitoring" class="tab-btn px-3 py-2 rounded-md">Monitoring</button>
+        <button data-view="alerts" class="tab-btn px-3 py-2 rounded-md">Alerts</button>
+        <button data-view="reports" class="tab-btn px-3 py-2 rounded-md">Reports</button>
+        <button data-view="trash" class="tab-btn px-3 py-2 rounded-md">Trash Bin</button>
+      </nav>
 
-    <!-- Dynamic Views -->
-    <section id="content-area">
-      <div id="view-dashboard">
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 mb-10">
-          <div class="card p-5 text-center gradient-bg">
-            <div class="text-sm muted mb-1">Total Students</div>
-            <i class="ph ph-users text-green-700 text-3xl mb-1"></i>
-            <div id="statTotal" class="text-2xl font-bold text-gray-800">0</div>
-          </div>
-          <div class="card p-5 text-center gradient-bg">
-            <div class="text-sm muted mb-1">OK Status</div>
-            <i class="ph ph-check-circle text-green-700 text-3xl mb-1"></i>
-            <div id="statOK" class="text-2xl font-bold text-gray-800">0</div>
-          </div>
-          <div class="card p-5 text-center gradient-bg">
-            <div class="text-sm muted mb-1">Watch Status</div>
-            <i class="ph ph-warning text-yellow-600 text-3xl mb-1"></i>
-            <div id="statWatch" class="text-2xl font-bold text-gray-800">0</div>
-          </div>
-          <div class="card p-5 text-center gradient-bg">
-            <div class="text-sm muted mb-1">Critical Status</div>
-            <i class="ph ph-x-circle text-red-600 text-3xl mb-1"></i>
-            <div id="statCrit" class="text-2xl font-bold text-gray-800">0</div>
-          </div>
-          <div class="card p-5 text-center gradient-bg">
-            <div class="text-sm muted mb-1">Active Alerts</div>
-            <i class="ph ph-bell text-purple-700 text-3xl mb-1"></i>
-            <div id="statAlerts" class="text-2xl font-bold text-gray-800">0</div>
-          </div>
-        </div>
+      <div class="ml-auto text-sm text-gray-600 hidden md:block" id="topStatusSummary"></div>
+    </div>
+  </header>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div class="card p-5 lg:col-span-2">
-            <div class="flex justify-between items-center mb-4">
-              <h3 class="font-semibold text-lg text-gray-800 flex items-center gap-2"><i class="ph ph-bell-ringing"></i> Recent Alerts</h3>
-              <span class="text-sm muted">Last 24 hours</span>
-            </div>
-            <div id="recentAlerts" class="flex flex-col gap-3 text-sm text-gray-700">
-              <p class="text-center text-gray-400 italic">No alerts yet...</p>
-            </div>
-          </div>
-
-          <div class="card p-5">
-            <h3 class="font-semibold text-lg text-gray-800 mb-3 flex items-center gap-2"><i class="ph ph-heartbeat"></i> Students Requiring Attention</h3>
-            <div id="attentionList" class="flex flex-col gap-3 text-sm text-gray-700">
-              <p class="text-center text-gray-400 italic">All students are stable.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Students View -->
-      <div id="view-students" class="hidden">
-        <div class="card p-5 mb-5 flex flex-col sm:flex-row justify-between items-center gap-3">
-          <input id="studentSearch" placeholder="Search student" class="border rounded px-3 py-2 w-full sm:w-1/3 shadow-sm focus:ring-2 focus:ring-green-300" />
-          <div class="flex gap-2">
-            <button id="btnAddStudent" class="bg-green-600 text-white px-5 py-2 rounded hover:bg-green-700 flex items-center gap-1"><i class="ph ph-plus"></i> Add Student</button>
-            <button id="btnAddPrompt" class="bg-slate-100 px-4 py-2 rounded hover:bg-slate-200">Add (Prompt)</button>
-          </div>
-        </div>
-
-        <div class="card overflow-x-auto">
-          <table class="min-w-full text-left text-sm">
-            <thead class="bg-green-50 text-green-700 uppercase text-xs">
-              <tr>
-                <th class="p-3">ID</th>
-                <th class="p-3">Name</th>
-                <th class="p-3">Course</th>
-                <th class="p-3">Age</th>
-                <th class="p-3">Sex</th>
-                <th class="p-3">Area</th>
-                <th class="p-3">Temp</th>
-                <th class="p-3">HR</th>
-                <th class="p-3">O₂</th>
-                <th class="p-3">Status</th>
-                <th class="p-3">Action</th>
-              </tr>
-            </thead>
-            <tbody id="studentsTable" class="divide-y"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Monitoring (hidden by default) -->
-      <div id="view-monitoring" class="hidden">
-        <div class="grid grid-cols-3 gap-4">
-          <div class="card p-4">
-            <h3 class="font-semibold mb-3">Students</h3>
-            <div id="monitoringList" class="flex flex-col gap-2"></div>
-          </div>
-
-          <div class="col-span-2">
-            <div class="card p-6 mb-4">
-              <div class="flex items-center justify-between">
-                <div>
-                  <h2 id="monName" class="text-xl font-semibold">Select a student</h2>
-                  <div id="monCourse" class="muted text-sm">—</div>
-                  <div id="monMeta" class="muted text-sm mt-1">—</div>
-                </div>
-                <div id="monStatus" class="badge-ok">OK</div>
-              </div>
-
-              <div class="grid grid-cols-3 gap-4 mt-6">
-                <div class="p-4 card">
-                  <div class="muted text-sm">Temperature</div>
-                  <div id="monTemp" class="text-2xl font-bold">—</div>
-                  <div id="monTempTag" class="mt-2 muted text-sm">—</div>
-                </div>
-                <div class="p-4 card">
-                  <div class="muted text-sm">Heart Rate</div>
-                  <div id="monHR" class="text-2xl font-bold">—</div>
-                  <div id="monHRTag" class="mt-2 muted text-sm">—</div>
-                </div>
-                <div class="p-4 card">
-                  <div class="muted text-sm">Oxygen Level</div>
-                  <div id="monO2" class="text-2xl font-bold">—</div>
-                  <div id="monO2Tag" class="mt-2 muted text-sm">—</div>
-                </div>
-              </div>
-
-              <div class="mt-6">
-                <h4 class="font-semibold">24-Hour Vitals History</h4>
-                <div id="historyTable" class="mt-3"></div>
-              </div>
-            </div>
-
-            <div class="flex gap-3">
-              <button id="btnManualCheck" class="px-4 py-2 bg-indigo-600 text-white rounded">Manual Health Check</button>
-              <button id="btnSendAlert" class="px-4 py-2 bg-amber-500 text-white rounded">Send Alert</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Alerts -->
-      <div id="view-alerts" class="hidden">
-        <div class="card p-4">
-          <h3 class="font-semibold">Alerts</h3>
-          <div id="alertsTable" class="mt-4"></div>
-        </div>
-      </div>
-
-      <!-- Reports -->
-      <div id="view-reports" class="hidden">
-        <div class="card p-4">
-          <h3 class="font-semibold">Reports</h3>
-          <p class="muted mt-2">Simple export of students and alerts available via Export JSON.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Import input kept -->
-    <input id="fileImport" type="file" accept="application/json" class="hidden" />
+  <main class="p-6 max-w-7xl mx-auto">
+    <div id="content"></div>
   </main>
 
-  <!-- modal for add/edit student -->
-  <div id="studentModal" class="fixed inset-0 hidden items-center justify-center z-50">
-    <div class="absolute inset-0 modal-backdrop"></div>
-    <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl z-10 p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h3 id="modalTitle" class="text-lg font-semibold">Add Student</h3>
-        <button id="modalClose" class="text-gray-500 hover:text-gray-700"><i class="ph ph-x"></i></button>
-      </div>
+  <footer class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur rounded-lg shadow-lg px-4 py-2 flex items-center gap-4 z-40">
+    <div class="text-sm" id="bottomStatus">Loading status...</div>
+    <div class="text-xs text-gray-500">•</div>
+    <div class="text-sm text-gray-600" id="updatedAt">Updated: —</div>
+  </footer>
 
-      <form id="studentForm" class="space-y-3">
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-sm muted mb-1">Student ID</label>
-            <input id="formId" required class="w-full border rounded px-3 py-2" placeholder="S007" />
-          </div>
-          <div>
-            <label class="block text-sm muted mb-1">Age</label>
-            <input id="formAge" type="number" min="1" class="w-full border rounded px-3 py-2" placeholder="18" />
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-sm muted mb-1">Full name</label>
-          <input id="formName" required class="w-full border rounded px-3 py-2" placeholder="Juan dela Cruz" />
-        </div>
-
-        <div class="grid grid-cols-3 gap-3">
-          <div>
-            <label class="block text-sm muted mb-1">Sex</label>
-            <select id="formSex" class="w-full border rounded px-3 py-2">
-              <option value="">— select —</option>
-              <option>Male</option>
-              <option>Female</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm muted mb-1">Area</label>
-            <select id="formGender" class="w-full border rounded px-3 py-2">
-              <option value="">— select —</option>
-              <option>Old Site</option>
-              <option>Mid site</option>
-              <option>New Site</option>
-              <option></option>
-              <option></option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm muted mb-1">Course</label>
-            <select id="formCourse" class="w-full border rounded px-3 py-2">
-              <option value="">— select course —</option>
-              <option>B.S. in Agriculture</option>
-              <option>B.S. in Information Technology</option>
-              <option>Bachelor of Secondary Education</option>
-              <option>B.S. in Inland Fisheries</option>
-              <option>B.S. in Agri-Business</option>
-              <option>B.S. in Criminology</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-3 gap-3">
-          <div>
-            <label class="block text-sm muted mb-1">Temperature (°C)</label>
-            <input id="formTemp" type="number" step="0.1" class="w-full border rounded px-3 py-2" placeholder="36.7" />
-          </div>
-          <div>
-            <label class="block text-sm muted mb-1">Heart rate (bpm)</label>
-            <input id="formHr" type="number" class="w-full border rounded px-3 py-2" placeholder="72" />
-          </div>
-          <div>
-            <label class="block text-sm muted mb-1">O₂ (%)</label>
-            <input id="formO2" type="number" class="w-full border rounded px-3 py-2" placeholder="98" />
-          </div>
-        </div>
-
-        <div class="flex items-center justify-end gap-2">
-          <button type="button" id="formCancel" class="px-4 py-2 rounded border">Cancel</button>
-          <button type="submit" id="formSave" class="px-4 py-2 rounded bg-green-600 text-white">Save</button>
-        </div>
-      </form>
+  <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div id="modalCard" class="bg-white dark:bg-slate-800 rounded-lg shadow-lg w-[900px] max-w-full p-6 modal-fade relative">
+      <button id="modalClose" class="absolute right-4 top-4 text-gray-500 hover:text-gray-800">&times;</button>
+      <div id="modalContent"></div>
     </div>
   </div>
 
-  <!-- 🌿 Footer -->
-  <footer class="bg-green-600 text-white py-4 mt-10 text-center text-sm">
-    <p>&copy; 2025 CampusHealth | Designed for a safer campus.</p>
-  </footer>
+  <audio id="alarmAudio">
+    <source src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" type="audio/ogg">
+  </audio>
 
-  <!-- JS -->
-  <script>
-  /***********************
-   * Simple client-side app (modal + prompt)
-   * Data persisted in localStorage
-   ***********************/
+<script>
+/* =========================
+   DATA + STATE
+   ========================= */
+let students = [
+  { id: "S001", name: "Ana Cruz", sex: "Female", age: 20, height: 160, contact: "09171234567", course: "BSIT", year: "2nd Year", temperature: 36.7, heartRate: 72, oxygen: 98, status: "OK", lastSeen: "2025-09-25 09:22", history: [] },
+  { id: "S002", name: "Mark Dela Vega", sex: "Male", age: 19, height: 170, contact: "09179876543", course: "BSCRIM", year: "1st Year", temperature: 38.3, heartRate: 95, oxygen: 94, status: "WATCH", lastSeen: "2025-09-25 11:03", history: [] },
+  { id: "S003", name: "Liza Santos", sex: "Female", age: 21, height: 158, contact: "09173456789", course: "BSCED", year: "3rd Year", temperature: 39.1, heartRate: 110, oxygen: 90, status: "CRITICAL", lastSeen: "2025-09-25 11:40", history: [] }
+];
 
-  // ----- Config / Courses -----
-  const COURSES = [
-    'B.S. in Agriculture',
-    'B.S. in Information Technology',
-    'Bachelor of Secondary Education',
-    'B.S. in Inland Fisheries',
-    'B.S. in Agri-Business',
-    'B.S. in Criminology'
-  ];
+let alerts = [];
+let deletedStudents = [];
+let view = 'dashboard';
+let perPage = 7;
+let currentPage = 1;
+let autoRefresh = true;
+let chartInstances = {};
+let simInterval = null;
+let alarmLoop = null;
 
-  // ----- Default Data (updated with new fields) -----
-  const DEFAULT_STUDENTS = [
-    { id: 'S001', name: 'Ana Cruz', course: 'B.S. in Information Technology', age: 19, sex: 'Female', gender: 'Woman', temp: 36.7, hr: 72, o2: 98, history: [] },
-    { id: 'S002', name: 'Mark Dela Vega', course: 'B.S. in Criminology', age: 21, sex: 'Male', gender: 'Man', temp: 38.3, hr: 95, o2: 94, history: [] },
-    { id: 'S003', name: 'Liza Santos', course: 'Bachelor of Secondary Education', age: 20, sex: 'Female', gender: 'Woman', temp: 39.1, hr: 110, o2: 90, history: [] },
-    { id: 'S004', name: 'John Martinez', course: 'B.S. in Agriculture', age: 22, sex: 'Male', gender: 'Man', temp: 36.5, hr: 68, o2: 99, history: [] },
-    { id: 'S005', name: 'Sarah Johnson', course: 'B.S. in Agri-Business', age: 18, sex: 'Female', gender: 'Woman', temp: 37.8, hr: 88, o2: 96, history: [] },
-    { id: 'S006', name: 'Michael Chen', course: 'B.S. in Inland Fisheries', age: 23, sex: 'Male', gender: 'Man', temp: 36.9, hr: 75, o2: 97, history: [] }
-  ];
-
-  // ----- Storage helpers -----
-  function loadData(){
-    const raw = localStorage.getItem('campushealth_data');
-    if (!raw) {
-      localStorage.setItem('campushealth_data', JSON.stringify(DEFAULT_STUDENTS));
-      return DEFAULT_STUDENTS.slice();
-    }
-    try {
-      return JSON.parse(raw);
-    } catch(e){
-      console.error(e);
-      localStorage.removeItem('campushealth_data');
-      localStorage.setItem('campushealth_data', JSON.stringify(DEFAULT_STUDENTS));
-      return DEFAULT_STUDENTS.slice();
-    }
-  }
-  function saveData(arr){
-    localStorage.setItem('campushealth_data', JSON.stringify(arr));
-  }
-
-  let students = loadData();
-  let alerts = JSON.parse(localStorage.getItem('campushealth_alerts')||'[]');
-  let selectedStudentId = null;
-
-  // ----- Status evaluation -----
-  function evaluateStatus(s){
-    const t = Number(s.temp);
-    if (t >= 39) return 'CRITICAL';
-    if (t >= 37.5) return 'WATCH';
-    return 'OK';
-  }
-
-  // ----- Navigation & view handling -----
-  function navigateTo(view){
-    location.hash = view;
-    showView(view);
-  }
-  function showView(view){
-    document.querySelectorAll('#content-area > div').forEach(d=>d.classList.add('hidden'));
-    const target = document.getElementById('view-'+view);
-    if(target) target.classList.remove('hidden');
-    const titles = {dashboard:'Health Dashboard', students:'Students', monitoring:'Health Monitoring', alerts:'Alerts', reports:'Reports'};
-    document.getElementById('page-title').innerText = titles[view] || 'CampusHealth';
-    if(view==='students') renderStudentsTable();
-    if(view==='dashboard') renderDashboard();
-    if(view==='monitoring') renderMonitoringList();
-    if(view==='alerts') renderAlerts();
-  }
-
-  document.querySelectorAll('.nav-link').forEach(a=>{
-    a.onclick = (e)=>{ e.preventDefault(); const href = a.getAttribute('href').replace('#',''); navigateTo(href); };
-  });
-  window.addEventListener('hashchange', ()=>{ const h = location.hash.replace('#','')||'dashboard'; showView(h); });
-
-  // ----- Renderers -----
-  function renderDashboard(){
-    const total = students.length;
-    const ok = students.filter(s=>evaluateStatus(s)==='OK').length;
-    const watch = students.filter(s=>evaluateStatus(s)==='WATCH').length;
-    const crit = students.filter(s=>evaluateStatus(s)==='CRITICAL').length;
-    document.getElementById('statTotal').innerText = total;
-    document.getElementById('statOK').innerText = ok;
-    document.getElementById('statWatch').innerText = watch;
-    document.getElementById('statCrit').innerText = crit;
-    document.getElementById('statAlerts').innerText = alerts.length;
-
-    const recent = alerts.slice().reverse().slice(0,5);
-    const ra = document.getElementById('recentAlerts');
-    ra.innerHTML='';
-    if(recent.length===0) ra.innerHTML = '<p class="text-center text-gray-400 italic">No alerts yet...</p>';
-    recent.forEach(a=>{
-      const el = document.createElement('div');
-      el.className='p-3 border rounded';
-      el.innerHTML = `
-        <div class="font-semibold">${a.name}</div>
-        <div class="muted text-sm">${a.message}</div>
-        <div class="text-xs muted">${new Date(a.time).toLocaleString()}</div>
-      `;
-      ra.appendChild(el);
-    });
-
-    const attention = students.filter(s=>evaluateStatus(s)!=='OK');
-    const att = document.getElementById('attentionList');
-    att.innerHTML='';
-    if(attention.length===0) att.innerHTML = '<p class="text-center text-gray-400 italic">All students are stable.</p>';
-    attention.forEach(s=>{
-      const status = evaluateStatus(s);
-      const el = document.createElement('div');
-      el.className='p-3 border rounded flex items-center justify-between';
-      el.innerHTML = `
-        <div>
-          <div class="font-semibold">${s.name}</div>
-          <div class="muted text-sm">${s.course} — Age: ${s.age ?? '—'}</div>
-        </div>
-        <div class="text-sm">${status==='CRITICAL'?'<span class="badge-crit">CRITICAL</span>':'<span class="badge-watch">WATCH</span>'}</div>
-      `;
-      att.appendChild(el);
-    });
-  }
-
-  function renderStudentsTable(filter=''){
-    const tbody = document.getElementById('studentsTable');
-    tbody.innerHTML='';
-    const q = (filter||document.getElementById('studentSearch').value||'').toLowerCase();
-
-    students.filter(s=>{
-      const hay = `${s.id} ${s.name} ${s.course} ${s.age || ''} ${s.sex || ''} ${s.gender || ''} ${s.temp || ''}`.toLowerCase();
-      return hay.includes(q);
-    }).forEach(s=>{
-      const tr = document.createElement('tr');
-      tr.className='hover:bg-slate-50';
-      const status = evaluateStatus(s);
-      tr.innerHTML = `
-        <td class="p-3">${s.id}</td>
-        <td class="p-3">${s.name}</td>
-        <td class="p-3">${s.course}</td>
-        <td class="p-3">${s.age ?? ''}</td>
-        <td class="p-3">${s.sex ?? ''}</td>
-        <td class="p-3">${s.gender ?? ''}</td>
-        <td class="p-3">${s.temp}</td>
-        <td class="p-3">${s.hr}</td>
-        <td class="p-3">${s.o2}</td>
-        <td class="p-3">${status==='OK'?'<span class="badge-ok">OK</span>':status==='WATCH'?'<span class="badge-watch">WATCH</span>':'<span class="badge-crit">CRITICAL</span>'}</td>
-        <td class="p-3">
-          <a href="#" data-id="${s.id}" class="link-edit text-indigo-600 mr-3">Edit</a>
-          <a href="#" data-id="${s.id}" class="link-delete text-red-600">Delete</a>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-    // attach actions
-    document.querySelectorAll('.link-delete').forEach(a=>a.onclick=e=>{
-      e.preventDefault();
-      const id=a.dataset.id;
-      if(confirm('Delete '+id+'?')){
-        students = students.filter(x=>x.id!==id);
-        saveData(students);
-        renderStudentsTable();
-        renderDashboard();
-        renderMonitoringList();
-      }
-    });
-    document.querySelectorAll('.link-edit').forEach(a=>a.onclick=e=>{
-      e.preventDefault();
-      const id=a.dataset.id;
-      openModalForEdit(id);
-    });
-  }
-
-  function renderMonitoringList(){
-    const box = document.getElementById('monitoringList');
-    box.innerHTML='';
-    students.forEach(s=>{
-      const status = evaluateStatus(s);
-      const el = document.createElement('div');
-      el.className='p-2 border rounded flex items-center justify-between cursor-pointer';
-      el.innerHTML = `
-        <div>
-          <div class="font-semibold">${s.name}</div>
-          <div class="muted text-sm">${s.id} • ${s.course}</div>
-        </div>
-        <div class="dot" style="background:${status==='OK'? '#10B981':status==='WATCH'?'#D97706':'#EF4444'}"></div>
-      `;
-      el.onclick = ()=>{ selectMonitoringStudent(s.id); navigateTo('monitoring'); };
-      box.appendChild(el);
-    });
-    if(!selectedStudentId && students.length) selectMonitoringStudent(students[0].id);
-  }
-
-  function renderMonitoringDetail(s){
-    document.getElementById('monName').innerText = s.name;
-    document.getElementById('monCourse').innerText = s.course + ' — ID: '+s.id;
-    document.getElementById('monMeta').innerText = `Age: ${s.age ?? '—'} • Sex: ${s.sex ?? '—'} • Gender: ${s.gender ?? '—'}`;
-    const status = evaluateStatus(s);
-    const stEl = document.getElementById('monStatus');
-    stEl.className = status==='OK'? 'badge-ok': status==='WATCH'? 'badge-watch':'badge-crit';
-    stEl.innerText = status;
-    document.getElementById('monTemp').innerText = s.temp + '°C';
-    document.getElementById('monTempTag').innerText = status==='OK'?'NORMAL':status==='WATCH'?'ELEVATED':'HIGH FEVER';
-    document.getElementById('monHR').innerText = s.hr + ' bpm';
-    document.getElementById('monHRTag').innerText = '—';
-    document.getElementById('monO2').innerText = s.o2 + '%';
-    document.getElementById('monO2Tag').innerText = '—';
-
-    const h = s.history || [];
-    const ht = document.getElementById('historyTable');
-    ht.innerHTML='';
-    if(h.length===0){ ht.innerHTML = '<p class="muted text-sm">No history available.</p>'; return; }
-    const table = document.createElement('table');
-    table.className='min-w-full';
-    const thead = document.createElement('thead');
-    thead.innerHTML='<tr class="text-left"><th class="p-2">Time</th><th class="p-2">Temp</th><th class="p-2">HR</th><th class="p-2">O₂</th></tr>';
-    table.appendChild(thead);
-    const tbody = document.createElement('tbody');
-    h.slice().reverse().slice(0,12).forEach(row=>{
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td class="p-2">${new Date(row.time).toLocaleTimeString()}</td>
-        <td class="p-2">${row.temp}°C</td>
-        <td class="p-2">${row.hr} bpm</td>
-        <td class="p-2">${row.o2}%</td>
-      `;
-      tbody.appendChild(tr);
-    });
-    table.appendChild(tbody);
-    ht.appendChild(table);
-  }
-
-  function renderAlerts(){
-    const box = document.getElementById('alertsTable');
-    box.innerHTML='';
-    if(alerts.length===0) { box.innerHTML = '<p class="muted">No alerts.</p>'; return; }
-    alerts.slice().reverse().forEach(a=>{
-      const el = document.createElement('div');
-      el.className='p-3 border rounded mb-2';
-      el.innerHTML = `
-        <div class="font-semibold">${a.name}</div>
-        <div class="muted text-sm">${a.message}</div>
-        <div class="text-xs muted">${new Date(a.time).toLocaleString()}</div>
-      `;
-      box.appendChild(el);
-    });
-  }
-
-  // ----- Monitoring selection & operations -----
-  function selectMonitoringStudent(id){
-    selectedStudentId = id;
-    const s = students.find(x=>x.id===id);
-    if(!s) return;
-    renderMonitoringDetail(s);
-  }
-
-  function manualHealthCheck(){
-    if(!selectedStudentId) return alert('Select a student');
-    const s = students.find(x=>x.id===selectedStudentId);
-    if(!s) return;
-    const newTemp = Number((Number(s.temp) + (Math.random()*2 - 0.5)).toFixed(1));
-    const newHR = Math.round(Number(s.hr) + Math.random()*8 - 4);
-    const newO2 = Math.round(Number(s.o2) + Math.random()*2 - 1);
-    const now = Date.now();
-    s.temp = newTemp;
-    s.hr = newHR;
-    s.o2 = newO2;
-    s.history = s.history || [];
-    s.history.push({ time: now, temp: s.temp, hr: s.hr, o2: s.o2 });
-    saveData(students);
-    checkForAlert(s);
-    renderMonitoringDetail(s);
-    renderStudentsTable();
-    renderDashboard();
-  }
-
-  function checkForAlert(s){
-    const status = evaluateStatus(s);
-    if(status !== 'OK'){
-      const message = status==='CRITICAL'
-        ? `High fever detected - Temperature: ${s.temp}°C`
-        : `Elevated temperature - Temperature: ${s.temp}°C`;
-      const a = { id: 'A'+Date.now(), studentId: s.id, name: s.name, message, time: Date.now(), status };
-      alerts.push(a);
-      localStorage.setItem('campushealth_alerts', JSON.stringify(alerts));
-    }
-  }
-
-  function sendAlertNow(){
-    if(!selectedStudentId) return alert('Select a student first');
-    const s = students.find(x=>x.id===selectedStudentId);
-    alerts.push({ id:'A'+Date.now(), studentId:s.id, name:s.name, message:'Manual alert sent by staff', time: Date.now(), status:evaluateStatus(s)});
-    localStorage.setItem('campushealth_alerts', JSON.stringify(alerts));
-    renderAlerts();
-    renderDashboard();
-    alert('Alert queued (demo)');
-  }
-
-  // ----- Add/Edit via Prompt (kept for compatibility) -----
-  function addStudentViaPrompt(){
-    const id = prompt('Student ID (e.g. S007):');
-    if(!id) return;
-    if(students.find(s=>s.id===id)) { alert('ID already exists'); return; }
-    const name = prompt('Full name:');
-    if(!name) return;
-    const course = prompt('Course (type or paste):') || '';
-    const age = Number(prompt('Age:','18') || 0);
-    const sex = prompt('Sex (Male/Female/Other):') || '';
-    const gender = prompt('Gender (Man/Woman/Non-binary/Prefer not to say/Other):') || '';
-    const temp = Number(prompt('Temperature (°C):', '36.6') || 0);
-    const hr = Number(prompt('Heart rate (bpm):', '70') || 0);
-    const o2 = Number(prompt('O₂ (%):', '98') || 0);
-    students.push({ id, name, course, age, sex, gender, temp, hr, o2, history: [{ time: Date.now(), temp, hr, o2 }] });
-    saveData(students);
-    renderStudentsTable();
-    renderDashboard();
-    renderMonitoringList();
-  }
-
-  function editStudentViaPrompt(id){
-    const s = students.find(x=>x.id===id);
-    if(!s) return alert('Student not found');
-    const name = prompt('Full name:', s.name);
-    if(!name) return;
-    const course = prompt('Course:', s.course) || s.course;
-    const age = Number(prompt('Age:', String(s.age || '')) || s.age);
-    const sex = prompt('Sex (Male/Female/Other):', s.sex || '') || s.sex;
-    const gender = prompt('Gender (Man/Woman/Non-binary):', s.gender || '') || s.gender;
-    const temp = Number(prompt('Temperature (°C):', String(s.temp)) || s.temp);
-    const hr = Number(prompt('Heart rate (bpm):', String(s.hr)) || s.hr);
-    const o2 = Number(prompt('O₂ (%):', String(s.o2)) || s.o2);
-    s.name = name;
-    s.course = course;
-    s.age = age;
-    s.sex = sex;
-    s.gender = gender;
-    s.temp = temp;
-    s.hr = hr;
-    s.o2 = o2;
-    s.history = s.history || [];
-    saveData(students);
-    renderStudentsTable();
-    renderDashboard();
-    renderMonitoringList();
-  }
-
-  // ----- Modal Add/Edit Implementation -----
-  const studentModal = document.getElementById('studentModal');
-  const modalTitle = document.getElementById('modalTitle');
-  const modalClose = document.getElementById('modalClose');
-  const form = document.getElementById('studentForm');
-  const formId = document.getElementById('formId');
-  const formName = document.getElementById('formName');
-  const formCourse = document.getElementById('formCourse');
-  const formAge = document.getElementById('formAge');
-  const formSex = document.getElementById('formSex');
-  const formGender = document.getElementById('formGender');
-  const formTemp = document.getElementById('formTemp');
-  const formHr = document.getElementById('formHr');
-  const formO2 = document.getElementById('formO2');
-  const formCancel = document.getElementById('formCancel');
-
-  let modalMode = 'add'; // 'add' or 'edit'
-  let editingId = null;
-
-  function openModalForAdd(){
-    modalMode = 'add';
-    editingId = null;
-    modalTitle.innerText = 'Add Student';
-    formId.disabled = false;
-    form.reset();
-    // set course options (already in markup)
-    showModal();
-  }
-  function openModalForEdit(id){
-    modalMode = 'edit';
-    editingId = id;
-    modalTitle.innerText = 'Edit Student';
-    const s = students.find(x=>x.id===id);
-    if(!s) return alert('Student not found');
-    formId.value = s.id; formId.disabled = true;
-    formName.value = s.name || '';
-    formCourse.value = s.course || '';
-    formAge.value = s.age || '';
-    formSex.value = s.sex || '';
-    formGender.value = s.gender || '';
-    formTemp.value = s.temp || '';
-    formHr.value = s.hr || '';
-    formO2.value = s.o2 || '';
-    showModal();
-  }
-
-  function showModal(){
-    studentModal.classList.remove('hidden');
-    studentModal.classList.add('flex');
-  }
-  function hideModal(){
-    studentModal.classList.add('hidden');
-    studentModal.classList.remove('flex');
-  }
-
-  modalClose.onclick = hideModal;
-  formCancel.onclick = hideModal;
-
-  form.addEventListener('submit', (ev)=>{
-    ev.preventDefault();
-    const idVal = formId.value.trim();
-    const nameVal = formName.value.trim();
-    const courseVal = formCourse.value.trim();
-    const ageVal = formAge.value ? Number(formAge.value) : null;
-    const sexVal = formSex.value;
-    const genderVal = formGender.value;
-    const tempVal = formTemp.value ? Number(formTemp.value) : 36.6;
-    const hrVal = formHr.value ? Number(formHr.value) : 70;
-    const o2Val = formO2.value ? Number(formO2.value) : 98;
-
-    if(!idVal || !nameVal){
-      alert('Please fill required fields (ID, Name).');
-      return;
-    }
-
-    if(modalMode === 'add'){
-      if(students.find(s=>s.id === idVal)){
-        alert('ID already exists.');
-        return;
-      }
-      students.push({
-        id: idVal,
-        name: nameVal,
-        course: courseVal,
-        age: ageVal,
-        sex: sexVal,
-        gender: genderVal,
-        temp: tempVal,
-        hr: hrVal,
-        o2: o2Val,
-        history: [{ time: Date.now(), temp: tempVal, hr: hrVal, o2: o2Val }]
-      });
-    } else if(modalMode === 'edit') {
-      const s = students.find(x=>x.id === editingId);
-      if(!s) { alert('Student not found'); hideModal(); return; }
-      s.name = nameVal;
-      s.course = courseVal;
-      s.age = ageVal;
-      s.sex = sexVal;
-      s.gender = genderVal;
-      s.temp = tempVal;
-      s.hr = hrVal;
-      s.o2 = o2Val;
-      s.history = s.history || [];
-    }
-
-    saveData(students);
-    hideModal();
-    renderStudentsTable();
-    renderDashboard();
-    renderMonitoringList();
-  });
-
-  // ----- UI bindings -----
-  document.getElementById('btnAddStudent').onclick = ()=> openModalForAdd();
-  document.getElementById('btnAddPrompt').onclick = ()=> addStudentViaPrompt();
-  document.getElementById('studentSearch').oninput = ()=> renderStudentsTable();
-  document.getElementById('globalSearch').oninput = ()=>{
-    const q=document.getElementById('globalSearch').value.toLowerCase();
-    if(q) { navigateTo('students'); document.getElementById('studentSearch').value=q; renderStudentsTable(); }
-  };
-  document.getElementById('btnManualCheck').onclick = manualHealthCheck;
-  document.getElementById('btnSendAlert').onclick = sendAlertNow;
-
-  // export/import
-  document.getElementById('btnExport').onclick = ()=>{
-    const data = { students, alerts };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'campushealth_export.json';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  };
-  document.getElementById('btnImport').onclick = ()=> document.getElementById('fileImport').click();
-  document.getElementById('fileImport').onchange = (e)=>{
-    const f = e.target.files[0];
-    if(!f) return;
-    const reader = new FileReader();
-    reader.onload = ()=>{
-      try{
-        const d = JSON.parse(reader.result);
-        if(d.students) { students = d.students; saveData(students); }
-        if(d.alerts) { alerts = d.alerts; localStorage.setItem('campushealth_alerts', JSON.stringify(alerts)); }
-        renderStudentsTable(); renderDashboard(); renderMonitoringList(); renderAlerts();
-        alert('Import successful');
-      }catch(err){ alert('Invalid JSON'); }
-    };
-    reader.readAsText(f);
-  };
-
-  // simulate automatic periodic checks (every 30s) - small variations
-  setInterval(()=>{
-    students.forEach(s=>{
-      if(Math.random() < 0.3){
-        s.temp = Number((s.temp + (Math.random()*1.4 - 0.2)).toFixed(1));
-        s.hr = Math.max(40, Math.round(s.hr + Math.random()*10 - 5));
-        s.o2 = Math.max(80, Math.round(s.o2 + Math.random()*3 - 1));
-        s.history = s.history || [];
-        s.history.push({ time: Date.now(), temp: s.temp, hr: s.hr, o2: s.o2 });
-        checkForAlert(s);
-      }
-    });
-    saveData(students);
-    localStorage.setItem('campushealth_alerts', JSON.stringify(alerts));
-    renderDashboard();
-    renderStudentsTable();
-    renderMonitoringList();
-  }, 30000);
-
-  // ----- Logout (simple demo) -----
-function updateNavUser(){
-  const userInfo = JSON.parse(localStorage.getItem('campushealth_user') || '{}');
-  document.getElementById('navUser').textContent = userInfo.username || '';
+/* =========================
+   UTILITIES
+   ========================= */
+function uid(prefix='S') { const n = Math.floor(Math.random()*900)+100; return prefix + Date.now().toString().slice(-4) + n; }
+function statusClass(status){
+  if(status==="OK") return "bg-green-100 text-green-800";
+  if(status==="WATCH") return "bg-yellow-100 text-yellow-800";
+  if(status==="CRITICAL") return "bg-red-100 text-red-800";
+  return "bg-gray-100 text-gray-700";
+}
+function download(filename, content) {
+  const a = document.createElement('a'); a.href = content; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+}
+function nowString(){ return new Date().toLocaleString(); }
+function saveToStorage(){ localStorage.setItem('CH_students', JSON.stringify(students)); localStorage.setItem('CH_alerts', JSON.stringify(alerts)); localStorage.setItem('CH_deleted', JSON.stringify(deletedStudents)); }
+function loadFromStorage(){
+  try{
+    const s = localStorage.getItem('CH_students');
+    const a = localStorage.getItem('CH_alerts');
+    const d = localStorage.getItem('CH_deleted');
+    if(s) students = JSON.parse(s);
+    if(a) alerts = JSON.parse(a);
+    if(d) deletedStudents = JSON.parse(d);
+  } catch(e){}
 }
 
-document.getElementById('btnLogout').onclick = () => {
-  if(!confirm('Are you sure you want to logout?')) return;
-  localStorage.removeItem('campushealth_user');
-  updateNavUser();
-  alert('Logged out.');
-  // ✅ Redirect to homepage after logout
-  window.location.href = "home.html"; 
-};
+/* =========================
+   STARTUP: load data, ask notification, night mode
+   ========================= */
+loadFromStorage();
+if(window.Notification && Notification.permission !== 'granted' && Notification.permission !== 'denied'){
+  Notification.requestPermission().catch(()=>{});
+}
+const hour = new Date().getHours();
+const darkToggleBox = document.getElementById('darkToggle');
+const darkIcon = document.getElementById('darkIcon');
+if(hour >= 18 || hour < 6){
+  darkToggleBox.checked = true;
+  document.documentElement.setAttribute('data-theme','dark');
+  document.querySelector('body').classList.add('dark');
+  darkIcon.className = 'bx bx-moon text-lg';
+}
 
+/* autosave every 3s */
+setInterval(saveToStorage, 3000);
 
-  // ----- Initialization -----
-  updateNavUser();
-  if(location.hash) showView(location.hash.replace('#',''));
-  else navigateTo('dashboard');
+/* =========================
+   STATUS BAR
+   ========================= */
+function updateBottomStatus(){
+  const ok = students.filter(s=>s.status==='OK').length;
+  const watch = students.filter(s=>s.status==='WATCH').length;
+  const crit = students.filter(s=>s.status==='CRITICAL').length;
+  document.getElementById('bottomStatus').textContent = `${students.length} Students • ${watch} Watch • ${crit} Critical`;
+  document.getElementById('updatedAt').textContent = `Updated: ${nowString()}`;
+  const top = document.getElementById('topStatusSummary');
+  if(top) top.textContent = `${students.length} students • ${crit} critical`;
+}
+
+/* =========================
+   NAV / RENDER
+   ========================= */
+function render(){
+  const c = document.getElementById('content');
+  c.innerHTML = '';
+  if(view==='dashboard') renderDashboard(c);
+  if(view==='students') renderStudents(c);
+  if(view==='monitoring') renderMonitoring(c);
+  if(view==='alerts') renderAlerts(c);
+  if(view==='reports') renderReports(c);
+  if(view==='trash') renderTrash(c);
+  updateBottomStatus();
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> {
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('nav-active'));
+    btn.classList.add('nav-active');
+    view = btn.dataset.view;
+    render();
+  });
+});
+
+document.getElementById('globalSearchTop').addEventListener('input', ()=>{
+  if(view !== 'students') {
+    view = 'students';
+    document.querySelectorAll('.tab-btn').forEach(b=>{ if(b.dataset.view!=='students') b.classList.remove('nav-active'); });
+    document.querySelector('[data-view="students"]').classList.add('nav-active');
+  }
+  currentPage = 1; render();
+});
+
+/* =========================
+   DASHBOARD
+   ========================= */
+function renderDashboard(c){
+  const ok = students.filter(s=>s.status==='OK').length;
+  const watch = students.filter(s=>s.status==='WATCH').length;
+  const crit = students.filter(s=>s.status==='CRITICAL').length;
+
+  c.innerHTML = `
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm border">
+        <div class="text-sm text-green-600">All Students</div>
+        <div class="text-2xl font-semibold text-green-800">${students.length}</div>
+        <div class="text-xs text-gray-500 mt-2">Updated: ${nowString()}</div>
+      </div>
+      <div class="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm border">
+        <div class="text-sm text-yellow-700">Watch</div>
+        <div class="text-2xl font-semibold text-yellow-700">${watch}</div>
+      </div>
+      <div class="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm border">
+        <div class="text-sm text-red-700">Critical</div>
+        <div class="text-2xl font-semibold text-red-700">${crit}</div>
+      </div>
+    </div>
+
+    <div class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold text-green-800">Status Distribution</h3>
+          <div class="text-xs text-gray-500">Live</div>
+        </div>
+        <canvas id="statusPie" class="mt-3"></canvas>
+      </div>
+
+      <div class="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm">
+        <h3 class="font-semibold text-green-800">Average Vitals (Snapshot)</h3>
+        <canvas id="vitalBar" class="mt-3"></canvas>
+      </div>
+
+      <div class="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm">
+        <h3 class="font-semibold text-green-800">Students per Course</h3>
+        <canvas id="courseBar" class="mt-3"></canvas>
+      </div>
+    </div>
+
+    <div class="mt-6 bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm">
+      <h3 class="font-semibold text-green-800">Recent Alerts</h3>
+      <ul id="recentAlerts" class="mt-3 space-y-2"></ul>
+    </div>
+  `;
+
+  drawStatusPie();
+  drawVitalBar();
+  drawCourseBar();
+  renderRecentAlerts();
+}
+
+function drawStatusPie(){
+  const ctx = document.getElementById('statusPie'); if(!ctx) return;
+  if(chartInstances.statusPie) chartInstances.statusPie.destroy();
+  const data = [students.filter(s=>s.status==='OK').length, students.filter(s=>s.status==='WATCH').length, students.filter(s=>s.status==='CRITICAL').length];
+  chartInstances.statusPie = new Chart(ctx, { type:'pie', data:{ labels:['OK','WATCH','CRITICAL'], datasets:[{ data, backgroundColor:['#34D399','#FBBF24','#F87171'] }] } });
+}
+
+function drawVitalBar(){
+  const ctx = document.getElementById('vitalBar'); if(!ctx) return;
+  if(chartInstances.vitalBar) chartInstances.vitalBar.destroy();
+  const labels = students.map(s=>s.name);
+  const temps = students.map(s=>s.temperature||0);
+  const hrs = students.map(s=>s.heartRate||0);
+  const ox = students.map(s=>s.oxygen||0);
+  chartInstances.vitalBar = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[ { label:'Temp (°C)', data:temps }, { label:'HR (bpm)', data:hrs }, { label:'O₂ (%)', data:ox } ] },
+    options:{ responsive:true, interaction:{mode:'index'}, scales:{ y:{ beginAtZero:true } } }
+  });
+}
+
+function drawCourseBar(){
+  const ctx = document.getElementById('courseBar'); if(!ctx) return;
+  if(chartInstances.courseBar) chartInstances.courseBar.destroy();
+  const group = {};
+  students.forEach(s=> group[s.course] = (group[s.course]||0)+1 );
+  chartInstances.courseBar = new Chart(ctx, {
+    type:'bar',
+    data:{ labels:Object.keys(group), datasets:[{ label: 'Students', data:Object.values(group) }] },
+    options:{ responsive:true }
+  });
+}
+
+function renderRecentAlerts(){
+  const el = document.getElementById('recentAlerts');
+  el.innerHTML = alerts.slice().reverse().slice(0,5).map(a=>`
+    <li class="p-3 rounded border ${a.type.includes('Auto') ? 'border-red-200 bg-red-50' : 'border-green-100 bg-white'}">
+      <div class="font-semibold text-sm">${a.type}</div>
+      <div class="text-sm">${a.message}</div>
+      <div class="text-xs text-gray-500 mt-1">${a.time}</div>
+    </li>
+  `).join('');
+}
+
+/* =========================
+   STUDENTS (list + CRUD + new features)
+   ========================= */
+function renderStudents(c){
+  c.innerHTML = `
+    <div class="flex justify-between mb-4">
+      <h2 class="font-semibold text-green-800">Students</h2>
+      <div class="flex gap-2">
+        <button class="px-4 py-2 bg-green-700 text-white rounded hover:bg-green-800" onclick="openStudentModal('add')">Add Student</button>
+        <button class="px-4 py-2 bg-gray-100 rounded" onclick="exportJSON()">Export JSON</button>
+        <button class="px-4 py-2 bg-gray-100 rounded" onclick="exportCSV()">Export CSV</button>
+        <button class="px-4 py-2 bg-gray-100 rounded" onclick="exportAlertsCSV()">Export Alerts CSV</button>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-sm">
+      <div class="mb-3 flex items-center gap-3">
+        <label class="text-sm">Filter:</label>
+        <select id="statusFilter" class="border px-2 py-1 rounded text-sm">
+          <option value="">All</option>
+          <option value="OK">OK</option>
+          <option value="WATCH">Watch</option>
+          <option value="CRITICAL">Critical</option>
+        </select>
+        <button onclick="openQRScanner()" class="px-3 py-1 bg-blue-600 text-white rounded text-sm">Scan QR</button>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead class="text-sm text-green-600 border-b">
+            <tr>
+              <th class="py-2">#</th>
+              <th class="py-2">ID</th>
+              <th class="py-2">Name</th>
+              <th class="py-2">Sex</th>
+              <th class="py-2">Age</th>
+              <th class="py-2">Course</th>
+              <th class="py-2">Temp</th>
+              <th class="py-2">HR</th>
+              <th class="py-2">O₂</th>
+              <th class="py-2">Status</th>
+              <th class="py-2">Last Seen</th>
+              <th class="py-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="studentsTbody"></tbody>
+        </table>
+      </div>
+
+      <div class="mt-4 flex items-center justify-between">
+        <div class="text-sm text-gray-600">Showing <span id="showingCount"></span></div>
+        <div class="flex items-center gap-2">
+          <button onclick="prevPage()" class="px-3 py-1 border rounded">Prev</button>
+          <div class="px-3 py-1 border rounded" id="pageInfo"></div>
+          <button onclick="nextPage()" class="px-3 py-1 border rounded">Next</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('statusFilter').addEventListener('change', ()=> { currentPage=1; renderStudentsTable(); });
   renderStudentsTable();
-  renderDashboard();
-  renderMonitoringList();
-  renderAlerts();
+}
 
-  // Expose some functions to console for debugging if needed
-  window._campus = { students, alerts, saveData, loadData, editStudentViaPrompt, addStudentViaPrompt, openModalForEdit };
+function getFilteredStudents(){
+  const q = (document.getElementById('globalSearchTop')?.value || '').toLowerCase();
+  let arr = students.slice();
+  if(q) arr = arr.filter(s => (s.name + ' ' + s.id + ' ' + s.course + ' ' + (s.sex||'')).toLowerCase().includes(q));
+  const stat = document.getElementById('statusFilter')?.value || '';
+  if(stat) arr = arr.filter(s => s.status === stat);
+  return arr;
+}
 
-  </script>
+function renderStudentsTable(){
+  const tbody = document.getElementById('studentsTbody');
+  const all = getFilteredStudents();
+  const total = all.length;
+  const pages = Math.max(1, Math.ceil(total / perPage));
+  currentPage = Math.min(currentPage, pages);
+  const start = (currentPage-1)*perPage;
+  const pageData = all.slice(start, start+perPage);
+
+  tbody.innerHTML = pageData.map((s,i)=>`
+    <tr class="border-b hover:bg-green-50">
+      <td class="py-2 px-2">${start + i + 1}</td>
+      <td class="py-2 px-2">${s.id}</td>
+      <td class="py-2 px-2 flex items-center gap-2">
+        ${s.photo ? `<img src="${s.photo}" class="w-8 h-8 object-cover rounded-full">` : `<div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs">${(s.name || '').split(' ').map(n=>n[0]).join('').slice(0,2)}</div>`}
+        <span>${s.name}</span>
+      </td>
+      <td class="py-2 px-2">${s.sex}</td>
+      <td class="py-2 px-2">${s.age}</td>
+      <td class="py-2 px-2">${s.course}</td>
+      <td class="py-2 px-2">${s.temperature ?? '-'}</td>
+      <td class="py-2 px-2">${s.heartRate ?? '-'}</td>
+      <td class="py-2 px-2">${s.oxygen ?? '-'}</td>
+      <td class="py-2 px-2"><span class="px-2 py-1 rounded text-xs ${statusClass(s.status)}">${s.status}</span></td>
+      <td class="py-2 px-2">${s.lastSeen ?? '-'}</td>
+      <td class="py-2 px-2 space-x-2">
+        <button class="text-blue-600 hover:underline" onclick="openStudentModal('view','${s.id}')">View</button>
+        <button class="text-yellow-600 hover:underline" onclick="openStudentModal('edit','${s.id}')">Edit</button>
+        <button class="text-purple-600 hover:underline" onclick="openHistory('${s.id}')">History</button>
+        <button class="text-red-600 hover:underline" onclick="deleteStudentById('${s.id}')">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+
+  document.getElementById('showingCount').textContent = total===0 ? '0' : `${start+1} - ${Math.min(start+perPage, total)} of ${total}`;
+  document.getElementById('pageInfo').textContent = `Page ${currentPage} / ${pages}`;
+}
+
+function prevPage(){ if(currentPage>1) { currentPage--; render(); } }
+function nextPage(){ const total = getFilteredStudents().length; const pages = Math.max(1, Math.ceil(total / perPage)); if(currentPage < pages){ currentPage++; render(); } }
+
+function openStudentModal(mode, id=null){
+  const modal = document.getElementById('modal');
+  const content = document.getElementById('modalContent');
+  let s = id ? students.find(x=>x.id===id) : null;
+
+  if(mode === 'view'){
+    content.innerHTML = `
+      <div class="flex justify-between items-start">
+        <h3 class="font-semibold text-green-800 mb-3">Student Details</h3>
+        <div class="space-x-2">
+          <button class="px-3 py-1 bg-red-700 text-white rounded" onclick="exportStudentPDF('${s.id}')">Export PDF</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-3 gap-4">
+        <div class="col-span-1">
+          ${s.photo ? `<img src="${s.photo}" class="w-40 h-40 object-cover rounded border">` : `<div class="w-40 h-40 bg-gray-100 rounded border flex items-center justify-center">No Photo</div>`}
+        </div>
+        <div class="col-span-2 grid grid-cols-2 gap-2">
+          <div><strong>ID:</strong> ${s.id}</div>
+          <div><strong>Name:</strong> ${s.name}</div>
+          <div><strong>Sex:</strong> ${s.sex}</div>
+          <div><strong>Age:</strong> ${s.age}</div>
+          <div><strong>Height:</strong> ${s.height ? s.height + ' cm' : '-'}</div>
+          <div><strong>Contact:</strong> ${s.contact}</div>
+          <div><strong>Course:</strong> ${s.course}</div>
+          <div><strong>Year:</strong> ${s.year}</div>
+          <div><strong>Temperature:</strong> ${s.temperature}°C</div>
+          <div><strong>Heart Rate:</strong> ${s.heartRate} bpm</div>
+          <div><strong>Oxygen:</strong> ${s.oxygen}%</div>
+          <div><strong>Status:</strong> ${s.status}</div>
+          <div><strong>Last Seen:</strong> ${s.lastSeen}</div>
+        </div>
+      </div>
+    `;
+  } else {
+    content.innerHTML = `
+      <h3 class="font-semibold text-green-800 mb-3">${mode==='add' ? 'Add Student' : 'Edit Student'}</h3>
+      <div class="grid grid-cols-2 gap-4">
+        <input id="s_id" placeholder="ID" class="border px-2 py-1 rounded" value="${s ? s.id : uid()}" ${s? 'readonly':''}>
+        <input id="s_name" placeholder="Name" class="border px-2 py-1 rounded" value="${s ? s.name : ''}">
+        <select id="s_sex" class="border px-2 py-1 rounded">
+          <option value="Male" ${s && s.sex==='Male'?'selected':''}>Male</option>
+          <option value="Female" ${s && s.sex==='Female'?'selected':''}>Female</option>
+        </select>
+        <input id="s_age" type="number" placeholder="Age" class="border px-2 py-1 rounded" value="${s ? s.age : ''}">
+        <input id="s_height" type="number" placeholder="Height (cm)" class="border px-2 py-1 rounded" value="${s ? s.height : ''}">
+        <input id="s_contact" placeholder="Contact" class="border px-2 py-1 rounded" value="${s ? s.contact : ''}">
+        <input id="s_course" placeholder="Course (e.g. BSIT)" class="border px-2 py-1 rounded" value="${s ? s.course : ''}">
+        <input id="s_year" placeholder="Year" class="border px-2 py-1 rounded" value="${s ? s.year : ''}">
+        <input id="s_temp" type="number" step="0.1" placeholder="Temperature" class="border px-2 py-1 rounded" value="${s ? s.temperature : ''}">
+        <input id="s_hr" type="number" placeholder="Heart Rate" class="border px-2 py-1 rounded" value="${s ? s.heartRate : ''}">
+        <input id="s_ox" type="number" placeholder="Oxygen %" class="border px-2 py-1 rounded" value="${s ? s.oxygen : ''}">
+        <select id="s_status" class="border px-2 py-1 rounded">
+          <option value="OK" ${s && s.status==='OK'?'selected':''}>OK</option>
+          <option value="WATCH" ${s && s.status==='WATCH'?'selected':''}>WATCH</option>
+          <option value="CRITICAL" ${s && s.status==='CRITICAL'?'selected':''}>CRITICAL</option>
+        </select>
+
+        <div class="col-span-2">
+          <label class="block text-sm mb-1">Profile Photo (optional)</label>
+          <input id="s_photo" type="file" accept="image/*" class="border px-2 py-1 rounded w-full">
+        </div>
+
+        <div class="col-span-2 flex gap-2 mt-3">
+          <button class="px-3 py-1 bg-green-700 text-white rounded" onclick="saveStudent('${mode}','${s ? s.id : ''}')">Save</button>
+          <button class="px-3 py-1 bg-gray-300 rounded" onclick="closeModal()">Cancel</button>
+        </div>
+      </div>
+    `;
+  }
+
+  modal.classList.remove('hidden'); modal.classList.add('flex');
+}
+
+function saveStudent(mode, oldId=''){
+  try {
+    const obj = {
+      id: document.getElementById('s_id').value,
+      name: document.getElementById('s_name').value,
+      sex: document.getElementById('s_sex').value,
+      age: parseInt(document.getElementById('s_age').value) || null,
+      height: parseInt(document.getElementById('s_height').value) || null,
+      contact: document.getElementById('s_contact').value,
+      course: document.getElementById('s_course').value || 'N/A',
+      year: document.getElementById('s_year').value || '',
+      temperature: document.getElementById('s_temp').value === '' ? null : parseFloat(document.getElementById('s_temp').value),
+      heartRate: document.getElementById('s_hr').value === '' ? null : parseInt(document.getElementById('s_hr').value),
+      oxygen: document.getElementById('s_ox').value === '' ? null : parseInt(document.getElementById('s_ox').value),
+      status: document.getElementById('s_status').value,
+      lastSeen: new Date().toLocaleString(),
+    };
+
+    // carry existing history if editing
+    const existing = students.find(x => x.id === oldId || x.id === obj.id);
+    obj.history = existing && existing.history ? [...existing.history] : [];
+    obj.history.push({
+      time: nowString(),
+      temp: obj.temperature,
+      hr: obj.heartRate,
+      ox: obj.oxygen,
+      status: obj.status
+    });
+
+    // handle photo (async read) — if provided, wait for reader, else proceed
+    const photoInput = document.getElementById('s_photo');
+    if(photoInput && photoInput.files && photoInput.files[0]){
+      const reader = new FileReader();
+      reader.onload = ()=> {
+        obj.photo = reader.result;
+        finalizeSave(obj, mode, oldId);
+      };
+      reader.readAsDataURL(photoInput.files[0]);
+      return;
+    } else {
+      obj.photo = existing ? existing.photo : null;
+      finalizeSave(obj, mode, oldId);
+    }
+  } catch(e){ alert('Error saving student: '+e.message); }
+}
+
+function finalizeSave(obj, mode, oldId){
+  if(mode==='add') students.push(obj);
+  else {
+    const idx = students.findIndex(x=>x.id===oldId || x.id===obj.id);
+    if(idx>=0) students[idx] = obj; else students.push(obj);
+  }
+
+  autoCheckHealth(obj);
+  closeModal(); render();
+  saveToStorage();
+}
+
+function deleteStudentById(id){
+  if(!confirm('Delete this student?')) return;
+  const s = students.find(x=>x.id === id);
+  if(s) {
+    deletedStudents.push({...s, deletedAt: nowString()});
+    students = students.filter(s=>s.id !== id);
+    saveToStorage();
+    render();
+  }
+}
+
+function openHistory(id){
+  const modal = document.getElementById('modal');
+  const content = document.getElementById('modalContent');
+  const s = students.find(x=>x.id===id) || deletedStudents.find(x=>x.id===id);
+  if(!s) return alert('Student not found');
+  let html = `<h3 class="font-semibold text-green-800 mb-3">${s.name} — Health History</h3>
+  <div class="max-h-96 overflow-y-auto space-y-2">`;
+  if(!s.history || s.history.length===0) html += `<div class="text-gray-500">No history yet.</div>`;
+  else html += s.history.slice().reverse().map(h=>`
+    <div class="border p-2 rounded">
+      <div class="text-xs text-gray-500">${h.time}</div>
+      <div>Temp: ${h.temp ?? '-'}°C | HR: ${h.hr ?? '-'} bpm | O₂: ${h.ox ?? '-'}%</div>
+      <div>Status: <span class="${statusClass(h.status)} px-2 rounded text-xs">${h.status}</span></div>
+    </div>
+  `).join('');
+  html += `</div>`;
+  content.innerHTML = html;
+  modal.classList.remove('hidden'); modal.classList.add('flex');
+}
+
+/* =========================
+   TRASH BIN (restore)
+   ========================= */
+function renderTrash(c){
+  c.innerHTML = `
+    <div class="flex justify-between mb-4">
+      <h2 class="text-xl font-semibold text-green-800">Trash Bin</h2>
+      <div><button class="px-3 py-1 bg-gray-200 rounded" onclick="emptyTrash()">Empty Trash</button></div>
+    </div>
+    <div class="space-y-3">
+      ${deletedStudents.length===0 ? "<p class='text-gray-500'>No deleted students.</p>" : deletedStudents.map(s=>`
+        <div class="bg-white dark:bg-slate-800 p-4 rounded border shadow-sm flex justify-between items-start">
+          <div>
+            <div class="font-semibold">${s.name} (${s.id})</div>
+            <div class="text-xs text-gray-500">Deleted: ${s.deletedAt}</div>
+          </div>
+          <div class="flex gap-2">
+            <button class="px-3 py-1 border rounded" onclick="restoreStudent('${s.id}')">Restore</button>
+            <button class="px-3 py-1 border rounded text-red-600" onclick="purgeStudent('${s.id}')">Purge</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function restoreStudent(id){
+  const s = deletedStudents.find(x=>x.id===id);
+  if(!s) return;
+  students.push({...s, lastSeen: nowString()});
+  deletedStudents = deletedStudents.filter(x=>x.id !== id);
+  saveToStorage(); render();
+}
+
+function purgeStudent(id){
+  if(!confirm('Permanently delete this student?')) return;
+  deletedStudents = deletedStudents.filter(x=>x.id !== id);
+  saveToStorage(); render();
+}
+
+function emptyTrash(){
+  if(!confirm('Empty trash? This will permanently remove all deleted students.')) return;
+  deletedStudents = []; saveToStorage(); render();
+}
+
+/* =========================
+   EXPORT helpers
+   ========================= */
+function exportCSV(){
+  if(!students.length){ alert('No students to export'); return; }
+  const header = Object.keys(students[0]).filter(h=>h!=='photo' && h!=='history');
+  const rows = students.map(s => header.map(h => `"${(s[h] ?? '').toString().replace(/"/g,'""')}"`).join(','));
+  const csv = [header.join(','), ...rows].join('\n');
+  download('students.csv', 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv));
+}
+function exportJSON(){
+  download('students.json', 'data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(students, null, 2)));
+}
+function exportAlertsCSV(){
+  if(!alerts.length){ alert('No alerts to export'); return; }
+  const header = 'Type,Message,Time\n';
+  const rows = alerts.map(a => `"${a.type.replace(/"/g,'""')}","${a.message.replace(/"/g,'""')}","${a.time}"`).join('\n');
+  download('alerts.csv', 'data:text/csv;charset=utf-8,'+encodeURIComponent(header+rows));
+}
+
+/* =========================
+   AUTO health alert checker + notifications + alarm loop
+   ========================= */
+function autoCheckHealth(s){
+  if(!s) return;
+  if ( (s.temperature !== null && s.temperature > 38.5) || (s.heartRate !== null && s.heartRate > 120) || (s.oxygen !== null && s.oxygen < 92) ) {
+    const a = { type: "Auto Health Alert", message: `${s.name} shows abnormal vital signs`, time: nowString(), id: Date.now() };
+    alerts.push(a); renderRecentAlerts(); renderAlerts(document.getElementById('content')); playAlarmOnce();
+    // browser notification
+    if(window.Notification && Notification.permission === 'granted'){
+      new Notification("Critical Health Alert", { body: a.message });
+    }
+  }
+}
+
+function playAlarmOnce(){
+  try {
+    const a = document.getElementById('alarmAudio');
+    a.currentTime = 0;
+    a.play().catch(()=>{});
+  } catch(e){}
+}
+
+/* continuous alarm loop if any critical present */
+setInterval(()=> {
+  if(students.some(s=>s.status==='CRITICAL')){
+    if(!alarmLoop){
+      alarmLoop = setInterval(()=> { playAlarmOnce(); }, 4000);
+    }
+  } else {
+    if(alarmLoop){ clearInterval(alarmLoop); alarmLoop = null; }
+  }
+}, 2000);
+
+/* =========================
+   MONITORING (simulate)
+   ========================= */
+function renderMonitoring(c){
+  c.innerHTML = `
+    <div class="flex items-center justify-between">
+      <h2 class="text-xl font-semibold text-green-800">Real-Time Monitoring</h2>
+      <div class="flex items-center gap-2">
+        <label class="flex items-center gap-2"><input id="autoRefresh" type="checkbox" ${autoRefresh?'checked':''}/> Auto-refresh</label>
+        <button onclick="simulateOnce()" class="px-3 py-1 border rounded">Simulate Once</button>
+        <button onclick="toggleSimulation()" id="simBtn" class="px-3 py-1 bg-green-700 text-white rounded">Start/Stop</button>
+      </div>
+    </div>
+
+    <div class="mt-4 bg-white dark:bg-slate-800 p-4 rounded shadow-sm">
+      <table class="w-full text-left">
+        <thead class="text-sm text-green-600 border-b">
+          <tr><th class="py-2">ID</th><th>Name</th><th>Temp</th><th>HR</th><th>O₂</th><th>Status</th><th>Last Seen</th></tr>
+        </thead>
+        <tbody id="monitorTbody"></tbody>
+      </table>
+    </div>
+  `;
+  document.getElementById('autoRefresh').addEventListener('change', (e)=> autoRefresh = e.target.checked);
+  updateMonitoringTable();
+}
+
+function updateMonitoringTable(){
+  const tbody = document.getElementById('monitorTbody');
+  tbody.innerHTML = students.map(s => `
+    <tr class="border-b hover:bg-green-50 ${s.status==='CRITICAL' ? 'animate-pulse' : ''}">
+      <td class="py-2">${s.id}</td>
+      <td>${s.name}</td>
+      <td>${s.temperature!==null? s.temperature + '°C' : '-'}</td>
+      <td>${s.heartRate!==null? s.heartRate + ' bpm' : '-'}</td>
+      <td>${s.oxygen!==null? s.oxygen + '%' : '-'}</td>
+      <td><span class="px-2 py-1 rounded text-xs ${statusClass(s.status)}">${s.status}</span></td>
+      <td>${s.lastSeen || '-'}</td>
+    </tr>
+  `).join('');
+}
+
+function simulateOnce(){
+  students = students.map(s => {
+    const t = s.temperature ? +(s.temperature + (Math.random()-0.45)*0.6).toFixed(1) : +(36 + Math.random()*2).toFixed(1);
+    const hr = s.heartRate ? Math.max(40, Math.round(s.heartRate + Math.round((Math.random()-0.45)*8))) : Math.round(60 + Math.random()*40);
+    const ox = s.oxygen ? Math.max(80, Math.round(s.oxygen + Math.round((Math.random()-0.45)*2))) : Math.round(95 - Math.random()*5);
+    const st = (t > 38.5 || hr > 120 || ox < 92) ? 'CRITICAL' : (t > 37.5 || hr > 100 || ox < 95 ? 'WATCH' : 'OK');
+    const updated = {...s, temperature: t, heartRate: hr, oxygen: ox, status: st, lastSeen: new Date().toLocaleString()};
+    // push history
+    updated.history = updated.history || [];
+    updated.history.push({ time: updated.lastSeen, temp: t, hr, ox, status: st });
+    if(st === 'CRITICAL') alerts.push({ type: 'Auto Health Alert', message: `${s.name} became critical`, time: new Date().toLocaleString(), id: Date.now() });
+    return updated;
+  });
+
+  if(document.getElementById('monitorTbody')) updateMonitoringTable();
+  if(document.getElementById('statusPie')) { drawStatusPie(); drawVitalBar(); drawCourseBar(); renderRecentAlerts(); }
+  render();
+  saveToStorage();
+  if(students.some(s=>s.status==='CRITICAL')) playAlarmOnce();
+}
+
+function toggleSimulation(){
+  if(simInterval){ clearInterval(simInterval); simInterval = null; document.getElementById('simBtn').textContent = 'Start/Stop'; alert('Simulation stopped'); }
+  else { simInterval = setInterval(simulateOnce, 4500); document.getElementById('simBtn').textContent = 'Running...'; alert('Simulation started'); }
+}
+
+/* =========================
+   ALERTS UI
+   ========================= */
+function renderAlerts(c){
+  c.innerHTML = `
+    <div class="flex justify-between mb-4">
+      <h2 class="text-xl font-semibold text-green-800">Alerts</h2>
+      <div><button onclick="openAlertModal()" class="px-4 py-2 bg-green-700 text-white rounded">Create Alert</button></div>
+    </div>
+
+    <div class="space-y-3">
+      ${alerts.slice().reverse().map(a=>`
+        <div class="bg-white dark:bg-slate-800 p-4 rounded border shadow-sm flex justify-between items-start">
+          <div>
+            <div class="font-semibold">${a.type}</div>
+            <div>${a.message}</div>
+            <div class="text-xs text-gray-500 mt-1">${a.time}</div>
+          </div>
+          <div class="flex flex-col gap-2">
+            <button onclick="dismissAlert(${a.id})" class="px-3 py-1 border rounded text-sm">Dismiss</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function openAlertModal(){
+  const modal = document.getElementById('modal');
+  const content = document.getElementById('modalContent');
+  content.innerHTML = `
+    <h3 class="font-semibold text-green-800 mb-3">Create Alert</h3>
+    <input id="alertType" placeholder="Alert Type (e.g. Fever)" class="border w-full px-2 py-1 rounded mb-2" />
+    <textarea id="alertMsg" placeholder="Message" class="border w-full px-2 py-1 rounded"></textarea>
+    <div class="mt-3 space-x-2">
+      <button class="px-3 py-1 bg-green-700 text-white rounded" onclick="saveAlert()">Save</button>
+      <button class="px-3 py-1 bg-gray-300 rounded" onclick="closeModal()">Cancel</button>
+    </div>
+  `;
+  modal.classList.remove('hidden'); modal.classList.add('flex');
+}
+
+function saveAlert(){
+  const t = document.getElementById('alertType').value || 'Manual Alert';
+  const msg = document.getElementById('alertMsg').value || '';
+  alerts.push({ type: t, message: msg, time: new Date().toLocaleString(), id: Date.now() });
+  closeModal(); render();
+  saveToStorage();
+  setTimeout(()=>{ alerts = alerts.filter(a=> (Date.now() - a.id) < 5 * 60 * 1000 ); render(); saveToStorage(); }, 5*60*1000);
+}
+function dismissAlert(id){ alerts = alerts.filter(a => a.id !== id); render(); saveToStorage(); }
+
+/* =========================
+   REPORTS (PDF) + per-student PDF
+   ========================= */
+function renderReports(c){
+  c.innerHTML = `
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-semibold text-green-800">Reports</h2>
+      <div class="flex items-center gap-2">
+        <input id="rfrom" type="date" class="border px-2 py-1 rounded" />
+        <input id="rto" type="date" class="border px-2 py-1 rounded" />
+        <button onclick="generateReport()" class="px-3 py-1 bg-green-700 text-white rounded">Generate PDF</button>
+      </div>
+    </div>
+    <div id="reportResult" class="bg-white dark:bg-slate-800 p-4 rounded shadow-sm">
+      <p class="text-gray-600">Generate a PDF report of current student data (filtered by date range).</p>
+    </div>
+  `;
+}
+
+async function generateReport(){
+  const from = document.getElementById('rfrom').value;
+  const to = document.getElementById('rto').value;
+  const doc = new jspdf.jsPDF();
+  doc.setFontSize(16); doc.text('CampusHealth Report', 14, 20);
+  doc.setFontSize(10); doc.text(`Generated: ${nowString()}`, 14, 28);
+  if(from || to) doc.text(`Range: ${from || '-'} to ${to || '-'}`, 14, 34);
+  const rows = students.map(s => [s.id, s.name, s.course, s.status, s.temperature || '-', s.heartRate || '-', s.oxygen || '-', s.lastSeen || '-' ]);
+  doc.autoTable({ head: [['ID','Name','Course','Status','Temp','HR','O₂','Last Seen']], body: rows, startY: 42, theme: 'striped' });
+  const pdfName = `CampusHealth_Report_${new Date().toISOString().slice(0,10)}.pdf`;
+  doc.save(pdfName);
+}
+
+function exportStudentPDF(id){
+  const s = students.find(x=>x.id===id);
+  if(!s) return alert('Student not found');
+  const doc = new jspdf.jsPDF();
+  doc.text(`Student Report: ${s.name}`, 14, 15);
+  doc.autoTable({
+    startY: 25,
+    body: [
+      ['ID', s.id], ['Name', s.name], ['Course', s.course],
+      ['Age', s.age], ['Status', s.status],
+      ['Temperature', s.temperature], ['Heart Rate', s.heartRate],
+      ['Oxygen', s.oxygen], ['Last Seen', s.lastSeen]
+    ]
+  });
+  doc.save(`${s.name.replace(/\s+/g,'_')}_Report.pdf`);
+}
+
+/* =========================
+   MODAL, DARK MODE, WIRING
+   ========================= */
+document.getElementById('modalClose').addEventListener('click', closeModal);
+function closeModal(){ const m = document.getElementById('modal'); m.classList.add('hidden'); m.classList.remove('flex'); }
+
+document.getElementById('alertTopBtn').addEventListener('click', ()=>{ view='alerts'; document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('nav-active')); document.querySelector('[data-view="alerts"]').classList.add('nav-active'); render(); });
+
+darkToggleBox.addEventListener('change', (e)=>{
+  const dark = e.target.checked;
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  document.querySelector('body').classList.toggle('dark', dark);
+  darkIcon.className = dark ? 'bx bx-moon text-lg' : 'bx bx-sun text-lg';
+});
+
+/* =========================
+   QR / Attendance (placeholder)
+   ========================= */
+function openQRScanner(){
+  const modal = document.getElementById('modal');
+  const content = document.getElementById('modalContent');
+  content.innerHTML = `
+    <h3 class="font-semibold text-green-800 mb-3">QR Scanner (Attendance)</h3>
+    <p class="text-gray-600 mb-2">This is a placeholder. To enable QR scanning integrate a library like <strong>html5-qrcode</strong> or <strong>jsQR</strong>.</p>
+    <video id="qrVideo" class="w-full h-72 bg-black"></video>
+    <div class="mt-3 flex gap-2">
+      <button class="px-3 py-1 bg-gray-200 rounded" onclick="closeModal()">Close</button>
+    </div>
+  `;
+  modal.classList.remove('hidden'); modal.classList.add('flex');
+  // NOTE: integration instructions:
+  // - Include html5-qrcode script and implement camera permission and scanning callbacks.
+}
+
+/* =========================
+   initial render + expose debug
+   ========================= */
+render();
+updateBottomStatus();
+
+window.students = students;
+window.alerts = alerts;
+window.exportCSV = exportCSV;
+window.exportJSON = exportJSON;
+window.importJSONFromFile = importJSONFromFile;
+
+/* =========================
+   File import support (drag/drop or input)
+   ========================= */
+function importJSONFromFile(file){
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      if(Array.isArray(data)) { students = students.concat(data.map(d => ({ ...d, history: d.history || [] }))); saveToStorage(); render(); }
+      else alert('JSON must be an array');
+    } catch(e){ alert('Invalid JSON'); }
+  };
+  reader.readAsText(file);
+}
+</script>
+
 </body>
 </html>
-
-
